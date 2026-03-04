@@ -168,6 +168,6 @@ MORE INFO
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   README.md          - Complete project documentation
   docs/TESTING.md    - QEMU testing details
-  LICENSE            - Dual BSD/GPL license
+  LICENSE            - MIT license
 
 EOF

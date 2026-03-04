@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+// SPDX-License-Identifier: MIT
 #include <stdio.h>
 #include <unistd.h>
 #include <string.h>

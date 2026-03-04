@@ -1,10 +1,12 @@
 # Linux Process Information Kernel Module
 
+![Project Banner](docs/banner.png)
+
 [![CI](https://img.shields.io/github/actions/workflow/status/navidpadid/process-info-kernel-module/ci.yml?branch=main&style=for-the-badge&logo=github&logoColor=white&label=Build)](https://github.com/navidpadid/process-info-kernel-module/actions/workflows/ci.yml)
 [![Last Commit](https://img.shields.io/github/last-commit/navidpadid/process-info-kernel-module?style=for-the-badge&logo=git&logoColor=white)](https://github.com/navidpadid/process-info-kernel-module/commits/main)
-[![License](https://img.shields.io/badge/License-Dual%20BSD%2FGPL-blue?style=for-the-badge)](LICENSE)
+[![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
 
-> A Linux kernel module that extracts detailed process and it's thread information including memory layout, CPU usage, and ELF sections via `/proc` filesystem.
+> A Linux kernel module that extracts detailed process and it's thread information including memory layout, CPU usage, ELF sections, Networking sockets and statistics via `/proc` filesystem.
 
 ## Features
 
@@ -196,24 +198,6 @@ kernel_module/
 
 
 
-## Safe Testing with QEMU
-
-For maximum safety, test the kernel module in an isolated QEMU virtual machine that won't affect your host system.
-
-### Quick Start
-
-```bash
-# One-time setup
-./e2e/qemu-setup.sh
-
-# Start VM
-./e2e/qemu-run.sh
-
-# In another terminal, run automated tests
-./e2e/qemu-test.sh
-```
-
-
 ## Makefile Targets
 
 ```bash
@@ -265,8 +249,6 @@ Builds the multi-threaded test program, installs the module, and validates outpu
 ./e2e/qemu-test.sh     # Run automated tests
 ```
 
-See [docs/TESTING.md](docs/TESTING.md) for detailed testing documentation.
-
 ## Documentation
 
 - [TESTING.md](docs/TESTING.md) - Unit tests, QEMU testing, troubleshooting
@@ -277,9 +259,7 @@ See [docs/TESTING.md](docs/TESTING.md) for detailed testing documentation.
 
 ## License
 
-Dual BSD/GPL - Choose the license that works best for you:
-- **GPL**: Required for Linux kernel compatibility
-- **BSD**: Permissive for other uses
+MIT License. See [LICENSE](LICENSE) for full terms.
 
 ## Contributing
 
@@ -291,13 +271,6 @@ Contributions welcome! The project includes:
 
 ---
 
-**Educational Project**: Demonstrates Linux kernel module development. Use at your own risk.
-
-### Configuration Files
-
-- `.clang-format` - clang-format configuration (Linux kernel style)
-- `.cppcheck-suppressions` - Suppression list for false positives
-- `.editorconfig` - Editor configuration for consistent coding style
 
 ### Static Analysis Tools
 
@@ -331,15 +304,3 @@ Code formatter that ensures consistent style:
 - 80-column limit
 - Linux brace style
 - Proper spacing and alignment
-
-## Testing
-
-The module has been tested on:
-- Ubuntu 20.04 LTS (Kernel 5.15+)
-- Ubuntu 22.04 LTS (Kernel 5.19+)
-- Ubuntu 24.04 LTS (Kernel 6.8+)
-
-**Kernel Compatibility Notes:**
-- Kernel 5.6+ required (proc_ops API)
-- Kernel 6.8+ recommended (VMA iterator API)
-- The code has been updated to use modern kernel APIs including VMA iterators and proc_ops**Educational Project**: Demonstrates Linux kernel module development. Use at your own risk.

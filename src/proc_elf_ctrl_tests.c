@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+// SPDX-License-Identifier: MIT
 #define _GNU_SOURCE
 #include "proc_elf_ctrl.h"
 #include <assert.h>
