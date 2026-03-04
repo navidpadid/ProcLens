@@ -2,8 +2,8 @@
 
 ![Project Banner](docs/banner.png)
 
-[![CI](https://img.shields.io/github/actions/workflow/status/navidpadid/process-info-kernel-module/ci.yml?branch=main&style=for-the-badge&logo=github&logoColor=white&label=Build)](https://github.com/navidpadid/process-info-kernel-module/actions/workflows/ci.yml)
-[![Last Commit](https://img.shields.io/github/last-commit/navidpadid/process-info-kernel-module?style=for-the-badge&logo=git&logoColor=white)](https://github.com/navidpadid/process-info-kernel-module/commits/main)
+[![CI](https://img.shields.io/github/actions/workflow/status/navidpadid/ProcLens/ci.yml?branch=main&style=for-the-badge&logo=github&logoColor=white&label=Build)](https://github.com/navidpadid/ProcLens/actions/workflows/ci.yml)
+[![Last Commit](https://img.shields.io/github/last-commit/navidpadid/ProcLens?style=for-the-badge&logo=git&logoColor=white)](https://github.com/navidpadid/ProcLens/commits/main)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
 
 > A Linux kernel module that extracts detailed process and thread information including memory layout, CPU usage, ELF sections, networking sockets, and statistics via `/proc` filesystem.
@@ -190,8 +190,8 @@ sudo make uninstall
 
 Download prebuilt binaries from GitHub Releases:
 
-- Latest release: https://github.com/navidpadid/process-info-kernel-module/releases/latest
-- All releases: https://github.com/navidpadid/process-info-kernel-module/releases
+- Latest release: https://github.com/navidpadid/ProcLens/releases/latest
+- All releases: https://github.com/navidpadid/ProcLens/releases
 
 > **Important:** Prebuilt kernel module releases are currently provided **only** for
 > **Linux kernel 6.8.0** (the standard Ubuntu 24.04 LTS kernel).
