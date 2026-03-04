@@ -1,10 +1,10 @@
 {
-  "name": "kernel-module-devcontainer",
+  "name": "proclens-devcontainer",
   "build": {
     "dockerfile": "Dockerfile",
     "context": ".."
   },
-  "workspaceFolder": "/workspaces/kernel_module",
+  "workspaceFolder": "/workspaces/ProcLens",
   "remoteUser": "ubuntu",
   "remoteEnv": {
     "HOME": "/home/ubuntu"

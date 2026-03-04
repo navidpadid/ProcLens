@@ -37,7 +37,7 @@ RUN if ! id -u ubuntu > /dev/null 2>&1; then \
     echo "ubuntu ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers
 
 # Set working directory
-WORKDIR /workspaces/kernel_module
+WORKDIR /workspaces/ProcLens
 
 # Switch to ubuntu user
 USER ubuntu
