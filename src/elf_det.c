@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+// SPDX-License-Identifier: MIT
 #include <linux/init.h>
 #include <linux/module.h> //for module programming
 #include <linux/sched.h> //for task_struct
@@ -24,7 +24,7 @@
 #include <net/inet_sock.h> //for inet_sock
 #include "elf_det.h"
 
-MODULE_LICENSE("Dual BSD/GPL"); // module license
+MODULE_LICENSE("Dual MIT/GPL"); // module license
 
 static char buff[20] =
 	"1"; // the common(global) buffer between kernel and user space

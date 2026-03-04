@@ -1,6 +1,6 @@
 # Scripts Documentation
 
-Scripts for testing the Linux Process Information Kernel Module in isolated QEMU virtual machines.
+Scripts for testing ProcLens in isolated QEMU virtual machines.
 
 ## Quick Reference
 

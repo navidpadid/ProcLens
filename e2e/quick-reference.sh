@@ -1,9 +1,9 @@
 #!/bin/bash
-# Quick reference for Linux Process Information Kernel Module testing
+# Quick reference for ProcLens testing
 
 cat << 'EOF'
 ╔══════════════════════════════════════════════════════════════╗
-║    Linux Process Info Kernel Module - Quick Reference       ║
+║              ProcLens - Quick Reference                     ║
 ╚══════════════════════════════════════════════════════════════╝
 
 LOCAL TESTING (No Kernel Required)
@@ -168,6 +168,6 @@ MORE INFO
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   README.md          - Complete project documentation
   docs/TESTING.md    - QEMU testing details
-  LICENSE            - Dual BSD/GPL license
+  LICENSE            - MIT license
 
 EOF

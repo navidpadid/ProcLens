@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: (GPL-2.0 OR BSD-2-Clause)
+// SPDX-License-Identifier: MIT
 // Simple multi-threaded test program for E2E testing
 #include <arpa/inet.h>
 #include <netinet/in.h>

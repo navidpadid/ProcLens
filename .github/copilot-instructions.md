@@ -139,11 +139,11 @@ Use these as examples when adding similar statistics.
 
 ### Target Categories
 
-- **Build**: `build`, `build-multithread`, `install`
-- **Run**: `run`, `run-multithread`, `unload`
-- **Test**: `test`, `unit-test`
-- **Quality**: `format`, `format-check`, `checkpatch`, `sparse`, `cppcheck`
-- **Cleanup**: `clean`, `distclean`
+- **Build**: `all`, `module`, `user`, `build-multithread`
+- **Run**: `install`, `uninstall`, `test`
+- **Test**: `unit`, `run-multithread`
+- **Quality**: `check`, `format`, `format-check`, `checkpatch`, `sparse`, `cppcheck`
+- **Cleanup**: `clean`
 
 ### Adding New Targets
 
@@ -164,8 +164,8 @@ Use these as examples when adding similar statistics.
 
 ```bash
 make clean
-make
-make test
+make all
+make unit
 make checkpatch  # MUST PASS
 make sparse
 make cppcheck
@@ -225,6 +225,8 @@ Tests validate actual kernel module behavior in isolated environment.
 - `print_memory_pressure()` - Display memory pressure metrics
 - `print_memory_layout()` - Show heap, stack, code segments
 - `print_elf_info()` - Display ELF binary details
+- `print_network_stats()` - Display brief per-process network statistics
+- `print_sockets()` - Display open sockets and endpoint details
 
 ### Helpers (`elf_det.h`)
 
