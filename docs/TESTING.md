@@ -173,6 +173,8 @@ The socket output should include:
 - Socket family (AF_INET, AF_INET6, AF_UNIX, AF_NETLINK)
 - Socket type (STREAM, DGRAM, RAW)
 - Connection state (ESTABLISHED, LISTEN, CLOSE_WAIT, etc.)
+- Protocol label (TCP, UDP, OTHER)
+- Per-socket traffic line for TCP/UDP sockets (`Traffic: RX ... TX ...`)
 - Local and remote addresses/ports for inet sockets
 - IPv6 addresses in full format
 
@@ -193,6 +195,10 @@ Look for:
 
 Note: RX/TX bytes and packets are aggregated from TCP sockets only. UNIX
 sockets are counted but do not contribute to byte/packet totals.
+
+In the open sockets section:
+- TCP sockets include lifetime packet/byte counters.
+- UDP sockets include queue-based packet/byte counters (current queued data).
 
 ## Test Coverage
 

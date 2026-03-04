@@ -396,12 +396,18 @@ static void print_sockets(struct seq_file *m, struct task_struct *task)
 	struct socket *sock;
 	struct sock *sk;
 	struct inet_sock *inet;
+	struct tcp_sock *tp;
 	unsigned int fd;
 	int socket_count = 0;
 	unsigned short family, type;
 	unsigned char state;
+	const char *protocol;
 	__be32 saddr, daddr;
 	__be16 sport, dport;
+	u64 rx_packets, tx_packets, rx_bytes, tx_bytes;
+	u32 udp_rx_packets, udp_tx_packets;
+	char traffic_line[160];
+	int traffic_len;
 	int i;
 
 	files = task->files;
@@ -435,13 +441,37 @@ static void print_sockets(struct seq_file *m, struct task_struct *task)
 		family = sk->sk_family;
 		type = sk->sk_type;
 		state = sk->sk_state;
+		protocol = socket_protocol_to_string(sk->sk_protocol);
 
-		seq_printf(
-			m,
-			"  [FD %u] Family: %-10s  Type: %-8s  State: %-12s\n",
-			fd, socket_family_to_string(family),
-			socket_type_to_string(type),
-			socket_state_to_string(state));
+		seq_printf(m,
+			   "  [FD %u] Family: %-10s  Type: %-8s  State: %-12s  "
+			   "Proto: %-5s\n",
+			   fd, socket_family_to_string(family),
+			   socket_type_to_string(type),
+			   socket_state_to_string(state), protocol);
+
+		if (sk->sk_protocol == IPPROTO_TCP) {
+			tp = tcp_sk(sk);
+			rx_packets = (u64)READ_ONCE(tp->segs_in);
+			tx_packets = (u64)READ_ONCE(tp->segs_out);
+			rx_bytes = (u64)READ_ONCE(tp->bytes_received);
+			tx_bytes = (u64)READ_ONCE(tp->bytes_sent);
+			traffic_len = format_tcp_traffic_line(
+				rx_packets, rx_bytes, tx_packets, tx_bytes,
+				traffic_line, sizeof(traffic_line));
+			if (traffic_len > 0)
+				seq_puts(m, traffic_line);
+		} else if (sk->sk_protocol == IPPROTO_UDP) {
+			udp_rx_packets = skb_queue_len(&sk->sk_receive_queue);
+			udp_tx_packets = skb_queue_len(&sk->sk_write_queue);
+			rx_bytes = (u64)sk_rmem_alloc_get(sk);
+			tx_bytes = (u64)READ_ONCE(sk->sk_wmem_queued);
+			traffic_len = format_udp_traffic_line(
+				udp_rx_packets, rx_bytes, udp_tx_packets,
+				tx_bytes, traffic_line, sizeof(traffic_line));
+			if (traffic_len > 0)
+				seq_puts(m, traffic_line);
+		}
 
 		/* Display address information for inet sockets */
 		if (family == AF_INET && sk->sk_prot) {

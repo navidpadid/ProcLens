@@ -78,6 +78,15 @@ if ! echo "$PROC_OUT" | grep -q "Open Sockets"; then
     echo "[FAIL] Open sockets section missing for PID $$"
     exit 1
 fi
+if ! echo "$PROC_OUT" | grep -q "Proto:"; then
+    echo "[FAIL] Open sockets protocol field missing for PID $$"
+    exit 1
+fi
+if echo "$PROC_OUT" | grep -Eq "Proto: +TCP|Proto: +UDP" && \
+   ! echo "$PROC_OUT" | grep -q "Traffic: RX"; then
+    echo "[FAIL] Per-socket traffic stats missing for TCP/UDP sockets (PID $$)"
+    exit 1
+fi
 
 echo ""
 echo "=== Testing Thread Information (PID: $$) ==="
@@ -107,6 +116,15 @@ if ! echo "$PROC_OUT" | grep -q "net_devices:"; then
 fi
 if ! echo "$PROC_OUT" | grep -q "Open Sockets"; then
     echo "[FAIL] Open sockets section missing for PID 1"
+    exit 1
+fi
+if ! echo "$PROC_OUT" | grep -q "Proto:"; then
+    echo "[FAIL] Open sockets protocol field missing for PID 1"
+    exit 1
+fi
+if echo "$PROC_OUT" | grep -Eq "Proto: +TCP|Proto: +UDP" && \
+   ! echo "$PROC_OUT" | grep -q "Traffic: RX"; then
+    echo "[FAIL] Per-socket traffic stats missing for TCP/UDP sockets (PID 1)"
     exit 1
 fi
 echo ""
@@ -153,6 +171,15 @@ if ! echo "$PROC_OUT" | grep -q "net_devices:"; then
 fi
 if ! echo "$PROC_OUT" | grep -q "Open Sockets"; then
     echo "[FAIL] Open sockets section missing for PID $MULTITHREAD_PID"
+    exit 1
+fi
+if ! echo "$PROC_OUT" | grep -q "Proto:"; then
+    echo "[FAIL] Open sockets protocol field missing for PID $MULTITHREAD_PID"
+    exit 1
+fi
+if echo "$PROC_OUT" | grep -Eq "Proto: +TCP|Proto: +UDP" && \
+   ! echo "$PROC_OUT" | grep -q "Traffic: RX"; then
+    echo "[FAIL] Per-socket traffic stats missing for TCP/UDP sockets (PID $MULTITHREAD_PID)"
     exit 1
 fi
 echo ""

@@ -466,6 +466,61 @@ static inline const char *socket_type_to_string(unsigned short type)
 	}
 }
 
+/* Convert socket protocol value to string representation
+ * Common values: TCP (6), UDP (17)
+ * Returns "OTHER" for unrecognized protocols
+ * For testing: use numeric values (6, 17)
+ */
+static inline const char *socket_protocol_to_string(unsigned short protocol)
+{
+	switch (protocol) {
+	case 6: /* IPPROTO_TCP */
+		return "TCP";
+	case 17: /* IPPROTO_UDP */
+		return "UDP";
+	default:
+		return "OTHER";
+	}
+}
+
+/* Format TCP per-socket traffic statistics line
+ * Returns number of characters written
+ */
+static inline int format_tcp_traffic_line(eh_u64 rx_packets,
+					  eh_u64 rx_bytes,
+					  eh_u64 tx_packets,
+					  eh_u64 tx_bytes,
+					  char *out_buf,
+					  int buf_size)
+{
+	if (!out_buf || buf_size < 80)
+		return 0;
+
+	return snprintf(out_buf, buf_size,
+			"          Traffic: RX pkts=%llu bytes=%llu  TX "
+			"pkts=%llu bytes=%llu\n",
+			rx_packets, rx_bytes, tx_packets, tx_bytes);
+}
+
+/* Format UDP per-socket traffic statistics line (queue snapshot)
+ * Returns number of characters written
+ */
+static inline int format_udp_traffic_line(eh_u64 rx_packets,
+					  eh_u64 rx_bytes,
+					  eh_u64 tx_packets,
+					  eh_u64 tx_bytes,
+					  char *out_buf,
+					  int buf_size)
+{
+	if (!out_buf || buf_size < 90)
+		return 0;
+
+	return snprintf(out_buf, buf_size,
+			"          Traffic: RX pkts=%llu bytes=%llu  TX "
+			"pkts=%llu bytes=%llu (queued)\n",
+			rx_packets, rx_bytes, tx_packets, tx_bytes);
+}
+
 /* Convert TCP socket state value to string representation
  * TCP state values: 1-12 representing connection states
  * Returns string representation or "UNKNOWN" for invalid states

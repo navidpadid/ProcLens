@@ -447,6 +447,42 @@ int main(void)
 	type_str = socket_type_to_string(0);
 	assert(strcmp(type_str, "UNKNOWN") == 0);
 
+	/* socket_protocol_to_string tests */
+	const char *proto_str;
+
+	proto_str = socket_protocol_to_string(6); /* IPPROTO_TCP */
+	assert(strcmp(proto_str, "TCP") == 0);
+
+	proto_str = socket_protocol_to_string(17); /* IPPROTO_UDP */
+	assert(strcmp(proto_str, "UDP") == 0);
+
+	proto_str = socket_protocol_to_string(1); /* ICMP */
+	assert(strcmp(proto_str, "OTHER") == 0);
+
+	proto_str = socket_protocol_to_string(0);
+	assert(strcmp(proto_str, "OTHER") == 0);
+
+	/* traffic line formatting tests */
+	char traffic_buf[200];
+
+	len = format_tcp_traffic_line(10, 2048, 11, 3072, traffic_buf,
+				      sizeof(traffic_buf));
+	assert(len > 0);
+	assert(strcmp(traffic_buf, "          Traffic: RX pkts=10 bytes=2048  "
+				   "TX pkts=11 bytes=3072\n") == 0);
+
+	len = format_udp_traffic_line(3, 512, 4, 1024, traffic_buf,
+				      sizeof(traffic_buf));
+	assert(len > 0);
+	assert(strcmp(traffic_buf, "          Traffic: RX pkts=3 bytes=512  TX "
+				   "pkts=4 bytes=1024 (queued)\n") == 0);
+
+	len = format_tcp_traffic_line(1, 1, 1, 1, NULL, sizeof(traffic_buf));
+	assert(len == 0);
+
+	len = format_udp_traffic_line(1, 1, 1, 1, traffic_buf, 10);
+	assert(len == 0);
+
 	/* socket_state_to_string tests */
 	const char *state_str;
 
