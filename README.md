@@ -1,4 +1,4 @@
-# Linux Process Information Kernel Module
+# ProcLens
 
 ![Project Banner](docs/banner.png)
 
@@ -12,6 +12,7 @@
 
 - [Features](#features)
 - [Quick Start](#quick-start)
+- [Release Binaries](#release-binaries)
 - [Makefile Targets](#makefile-targets)
 - [Testing](#testing)
 - [Project Structure](#project-structure)
@@ -184,6 +185,34 @@ Total threads: 15
 ```bash
 sudo make uninstall
 ```
+
+## Release Binaries
+
+Download prebuilt binaries from GitHub Releases:
+
+- Latest release: https://github.com/navidpadid/process-info-kernel-module/releases/latest
+- All releases: https://github.com/navidpadid/process-info-kernel-module/releases
+
+> **Important:** Prebuilt kernel module releases are currently provided **only** for
+> **Linux kernel 6.8.0** (the standard Ubuntu 24.04 LTS kernel).
+>
+> If your system runs any other kernel version, build from source instead.
+
+
+After downloading, install/run with root privileges as needed:
+
+```bash
+sudo insmod ./elf_det.ko
+./proc_elf_ctrl
+```
+
+To unload the module:
+
+```bash
+sudo rmmod elf_det
+```
+
+More detailed information is bundled with the release packages.
 
 ## Makefile Targets
 

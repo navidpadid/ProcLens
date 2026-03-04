@@ -191,7 +191,7 @@ format-check:
 
 # Help target
 help:
-	@echo "Linux Process Information Kernel Module - Build Targets:"
+	@echo "ProcLens - Build Targets:"
 	@echo ""
 	@echo "Build Targets:"
 	@echo "  make all               - Build both kernel module and user program (default)"

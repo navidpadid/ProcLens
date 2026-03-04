@@ -1,9 +1,9 @@
 #!/bin/bash
-# Quick reference for Linux Process Information Kernel Module testing
+# Quick reference for ProcLens testing
 
 cat << 'EOF'
 ╔══════════════════════════════════════════════════════════════╗
-║    Linux Process Info Kernel Module - Quick Reference       ║
+║              ProcLens - Quick Reference                     ║
 ╚══════════════════════════════════════════════════════════════╝
 
 LOCAL TESTING (No Kernel Required)
