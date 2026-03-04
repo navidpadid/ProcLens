@@ -27,7 +27,7 @@
 - **Process Memory Layout**: Code, Data, BSS, Heap, and Stack addresses
 - **Memory Pressure Monitoring**: RSS, VSZ, swap usage, page faults (major/minor), and OOM score adjustment
 - **Visual Memory Map**: Proportional bar chart visualization of memory regions
-- **Open Sockets**: List all open sockets with family (IPv4/IPv6/Unix), type, state, and addresses
+- **Open Sockets**: List all open sockets with family, type, state, protocol, addresses, and per-socket traffic stats
 - **Network Stats (Brief)**: Per-process TCP counters, socket counts (TCP/UDP/UNIX), drops, and net devices
 - **Thread Information**: List all threads with TID, state, CPU usage, priority, and CPU affinity
 - **CPU Usage Tracking**: Real-time CPU percentage calculation per process and thread
@@ -109,27 +109,29 @@ net_devices: lo=1 eth0=1
 
 Open Sockets:
 --------------------------------------------------------------------------------
- [FD 0] Family: AF_UNIX     Type: STREAM    State: ESTABLISHED  
- [FD 1] Family: AF_UNIX     Type: STREAM    State: ESTABLISHED  
- [FD 2] Family: AF_UNIX     Type: STREAM    State: ESTABLISHED  
- [FD 3] Family: AF_UNIX     Type: STREAM    State: ESTABLISHED  
- [FD 23] Family: AF_INET     Type: STREAM    State: ESTABLISHED  
+ [FD 0] Family: AF_UNIX     Type: STREAM    State: ESTABLISHED   Proto: OTHER
+ [FD 1] Family: AF_UNIX     Type: STREAM    State: ESTABLISHED   Proto: OTHER
+ [FD 2] Family: AF_UNIX     Type: STREAM    State: ESTABLISHED   Proto: OTHER
+ [FD 3] Family: AF_UNIX     Type: STREAM    State: ESTABLISHED   Proto: OTHER
+ [FD 23] Family: AF_INET     Type: STREAM    State: ESTABLISHED   Proto: TCP
+   Traffic: RX pkts=238 bytes=150387  TX pkts=241 bytes=147030
          Local:  127.0.0.1:[REDACTED]  Remote: 127.0.0.1:[REDACTED]
- [FD 26] Family: AF_UNIX     Type: STREAM    State: LISTEN       
- [FD 36] Family: AF_UNIX     Type: STREAM    State: ESTABLISHED  
- [FD 37] Family: AF_UNIX     Type: STREAM    State: LISTEN       
- [FD 39] Family: AF_UNIX     Type: STREAM    State: ESTABLISHED  
- [FD 41] Family: AF_UNIX     Type: STREAM    State: ESTABLISHED  
- [FD 43] Family: AF_UNIX     Type: STREAM    State: ESTABLISHED  
- [FD 45] Family: AF_UNIX     Type: STREAM    State: ESTABLISHED  
- [FD 49] Family: AF_UNIX     Type: STREAM    State: ESTABLISHED  
- [FD 50] Family: AF_UNIX     Type: STREAM    State: ESTABLISHED  
- [FD 51] Family: AF_UNIX     Type: STREAM    State: ESTABLISHED  
- [FD 53] Family: AF_UNIX     Type: STREAM    State: ESTABLISHED  
- [FD 57] Family: AF_UNIX     Type: STREAM    State: ESTABLISHED  
- [FD 59] Family: AF_INET     Type: STREAM    State: ESTABLISHED  
+ [FD 26] Family: AF_UNIX     Type: STREAM    State: LISTEN        Proto: OTHER
+ [FD 36] Family: AF_UNIX     Type: STREAM    State: ESTABLISHED   Proto: OTHER
+ [FD 37] Family: AF_UNIX     Type: STREAM    State: LISTEN        Proto: OTHER
+ [FD 39] Family: AF_UNIX     Type: STREAM    State: ESTABLISHED   Proto: OTHER
+ [FD 41] Family: AF_UNIX     Type: STREAM    State: ESTABLISHED   Proto: OTHER
+ [FD 43] Family: AF_UNIX     Type: STREAM    State: ESTABLISHED   Proto: OTHER
+ [FD 45] Family: AF_UNIX     Type: STREAM    State: ESTABLISHED   Proto: OTHER
+ [FD 49] Family: AF_UNIX     Type: STREAM    State: ESTABLISHED   Proto: OTHER
+ [FD 50] Family: AF_UNIX     Type: STREAM    State: ESTABLISHED   Proto: OTHER
+ [FD 51] Family: AF_UNIX     Type: STREAM    State: ESTABLISHED   Proto: OTHER
+ [FD 53] Family: AF_UNIX     Type: STREAM    State: ESTABLISHED   Proto: OTHER
+ [FD 57] Family: AF_UNIX     Type: STREAM    State: ESTABLISHED   Proto: OTHER
+ [FD 59] Family: AF_INET     Type: STREAM    State: ESTABLISHED   Proto: TCP
+   Traffic: RX pkts=671 bytes=512004  TX pkts=653 bytes=233911
          Local:  [INTERNAL_IP]:[PORT]  Remote: [REDACTED_PUBLIC_IP]:443
- [FD 62] Family: AF_UNIX     Type: STREAM    State: LISTEN       
+ [FD 62] Family: AF_UNIX     Type: STREAM    State: LISTEN        Proto: OTHER
 --------------------------------------------------------------------------------
 
 ===============================================================
@@ -284,8 +286,9 @@ kernel_module/
 - Sizes are automatically displayed in appropriate units (B, KB, or MB)
 - Low/High addresses show the memory address range of the process
 - BSS_START and BSS_END may be equal (zero-length BSS) in modern ELF binaries. This is normal.
-- **Open Sockets**: Shows file descriptor, socket family (AF_INET, AF_INET6, AF_UNIX), type (STREAM/DGRAM), state, and addresses
+- **Open Sockets**: Shows file descriptor, socket family, type, state, protocol, addresses, and traffic stats for TCP/UDP sockets
 - Socket families: AF_INET (IPv4), AF_INET6 (IPv6), AF_UNIX (Unix domain), AF_NETLINK (Netlink)
+- UDP traffic values are queue-based (current queued packets/bytes), while TCP traffic values are lifetime socket counters.
 - Thread STATE: R=Running, S=Sleeping, D=Uninterruptible, T=Stopped, t=Traced, Z=Zombie, X=Dead
 - PRIORITY: Shown as nice value (-20 to 19, where lower is higher priority)
 - CPU_AFFINITY: Shows which CPUs the thread can run on

@@ -51,10 +51,17 @@ The process information output includes an open sockets section that lists all o
 | **Family** | Socket address family | AF_INET, AF_INET6, AF_UNIX, AF_NETLINK, etc. |
 | **Type** | Socket type | STREAM (TCP), DGRAM (UDP), RAW |
 | **State** | Connection state (TCP) | ESTABLISHED, LISTEN, CLOSE_WAIT, etc. |
+| **Proto** | Socket protocol | TCP, UDP, or OTHER |
+| **Traffic** | Per-socket RX/TX packet and byte counters | TCP: lifetime counters; UDP: current queue counters |
 | **Local** | Local address and port | IPv4 (e.g., 127.0.0.1:8080) or IPv6 format |
 | **Remote** | Remote address and port | Destination address for connected sockets |
 
 The socket listing provides visibility into network connections and IPC sockets in use by the process. For processes with no open sockets, displays "No open sockets".
+
+Notes:
+- TCP traffic values come from `struct tcp_sock` counters (`segs_in`, `segs_out`, `bytes_received`, `bytes_sent`).
+- UDP traffic values are queue-based snapshots (`sk_receive_queue`, `sk_write_queue`, `sk_rmem_alloc`, `sk_wmem_queued`).
+- Protocols other than TCP/UDP are labeled `OTHER` and do not include a traffic line.
 
 ### Network Stats (Brief)
 
