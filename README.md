@@ -262,15 +262,15 @@ Builds the multi-threaded test program, installs the module, and validates outpu
 
 ### QEMU Testing (Safe Kernel Testing)
 ```bash
-./e2e/qemu-setup.sh    # One-time setup
-./e2e/qemu-run.sh      # Start VM
-./e2e/qemu-test.sh     # Run automated tests
+sudo ./e2e/qemu-setup.sh    # One-time setup
+sudo ./e2e/qemu-run.sh      # Start VM
+sudo ./e2e/qemu-test.sh     # Run automated tests
 ```
 
 ## Project Structure
 
 ```
-kernel_module/
+ProcLens/
 ├── .devcontainer/      # Dev container config (Docker + VS Code setup)
 ├── .github/            # CI/CD workflows (GitHub Actions)
 ├── docs/               # Detailed documentation

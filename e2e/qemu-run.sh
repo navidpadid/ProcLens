@@ -6,7 +6,6 @@ set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 QEMU_DIR="$SCRIPT_DIR/qemu-env"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 UBUNTU_VERSION="24.04"
 
 # Resolve QEMU binary (works across apt and snap installs)
@@ -24,16 +23,16 @@ if ! command -v "$QEMU_BIN" >/dev/null 2>&1; then
 fi
 if ! command -v "$QEMU_BIN" >/dev/null 2>&1 && [ ! -x "$QEMU_BIN" ]; then
   echo "ERROR: qemu-system-x86_64 not found in PATH."
-  echo "Hint: run ./e2e/qemu-setup.sh to install QEMU, or ensure /snap/bin is in PATH for snap installs."
-  echo "For apt-based systems: sudo apt-get install -y qemu-system-x86 qemu-utils"
+  echo "Run sudo ./e2e/qemu-setup.sh to provision host dependencies first."
+  echo "If QEMU is installed via snap, ensure /snap/bin is in PATH."
   exit 1
 fi
 
 # Check if setup was run
-if [ ! -f "$QEMU_DIR/ubuntu-${UBUNTU_VERSION}.img" ]; then
-    echo "ERROR: QEMU environment not set up!"
-  echo "Run: ./e2e/qemu-setup.sh first"
-    exit 1
+if [ ! -f "$QEMU_DIR/ubuntu-${UBUNTU_VERSION}.img" ] || [ ! -f "$QEMU_DIR/seed.img" ]; then
+  echo "ERROR: QEMU environment is incomplete or not set up."
+  echo "Run: sudo ./e2e/qemu-setup.sh first"
+  exit 1
 fi
 
 cd "$QEMU_DIR"
@@ -56,7 +55,7 @@ echo "  scp -P 2222 file ubuntu@localhost:~/"
 echo ""
 echo "To SSH into VM:"
 echo "  ssh -p 2222 ubuntu@localhost"
-echo "  (Uses SSH keys if configured, otherwise password: ubuntu)"rwis
+echo "  (Uses SSH keys if configured, otherwise password: ubuntu)"
 echo ""
 echo "Press Ctrl+A then X to exit QEMU"
 echo "==================================================="

@@ -20,12 +20,12 @@ LOCAL TESTING (No Kernel Required)
 
 QEMU SETUP (Run Once)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  ./e2e/qemu-setup.sh
+  sudo ./e2e/qemu-setup.sh
 
 
 START VM
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-  ./e2e/qemu-run.sh
+  sudo ./e2e/qemu-run.sh
 
   Login: ubuntu / ubuntu
   Exit:  Ctrl+A then X
@@ -34,7 +34,7 @@ START VM
 AUTO TEST (From Host, in Another Terminal)
 ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
   # Full automated test suite
-  ./e2e/qemu-test.sh
+  sudo ./e2e/qemu-test.sh
 
 
 CONNECT TO VM
@@ -98,7 +98,7 @@ CLEANUP
   rm -rf e2e/qemu-env/
 
   # Start fresh
-  ./e2e/qemu-setup.sh
+  sudo ./e2e/qemu-setup.sh
 
 
 PROJECT STRUCTURE
@@ -161,7 +161,7 @@ TROUBLESHOOTING
 
   # Reset QEMU environment
   rm -rf e2e/qemu-env/
-  ./e2e/qemu-setup.sh
+  sudo ./e2e/qemu-setup.sh
 
 
 MORE INFO
