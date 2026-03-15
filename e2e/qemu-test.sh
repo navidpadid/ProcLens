@@ -101,6 +101,10 @@ if ! echo "$PROC_OUT" | grep -q "net_devices:"; then
     echo "[FAIL] Network net_devices missing for PID $$"
     exit 1
 fi
+if ! echo "$PROC_OUT" | grep -q "top_talkers:"; then
+    echo "[FAIL] Network top_talkers missing for PID $$"
+    exit 1
+fi
 if ! echo "$PROC_OUT" | grep -q "Open Sockets"; then
     echo "[FAIL] Open sockets section missing for PID $$"
     exit 1
@@ -141,6 +145,10 @@ if ! echo "$PROC_OUT" | grep -q "sockets_total:"; then
 fi
 if ! echo "$PROC_OUT" | grep -q "net_devices:"; then
     echo "[FAIL] Network net_devices missing for PID 1"
+    exit 1
+fi
+if ! echo "$PROC_OUT" | grep -q "top_talkers:"; then
+    echo "[FAIL] Network top_talkers missing for PID 1"
     exit 1
 fi
 if ! echo "$PROC_OUT" | grep -q "Open Sockets"; then
@@ -198,6 +206,10 @@ if ! echo "$PROC_OUT" | grep -q "sockets_total:"; then
 fi
 if ! echo "$PROC_OUT" | grep -q "net_devices:"; then
     echo "[FAIL] Network net_devices missing for PID $MULTITHREAD_PID"
+    exit 1
+fi
+if ! echo "$PROC_OUT" | grep -q "top_talkers:"; then
+    echo "[FAIL] Network top_talkers missing for PID $MULTITHREAD_PID"
     exit 1
 fi
 if ! echo "$PROC_OUT" | grep -q "Open Sockets"; then

@@ -193,9 +193,16 @@ Look for:
 - `[network]`
 - `sockets_total:`
 - `net_devices:`
+- `top_talkers:`
 
 Note: RX/TX bytes and packets are aggregated from TCP sockets only. UNIX
 sockets are counted but do not contribute to byte/packet totals.
+
+Top talkers behavior:
+- Up to three sockets are listed in descending `RX + TX` byte order.
+- TCP entries use lifetime byte counters.
+- UDP entries use queue-based byte snapshots.
+- If no socket has byte activity, the section displays `none`.
 
 In the open sockets section:
 - TCP sockets include lifetime packet/byte counters.

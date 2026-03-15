@@ -299,14 +299,19 @@ static void print_network_stats(struct seq_file *m, struct task_struct *task)
 	u64 rx_packets = 0, tx_packets = 0;
 	u64 rx_bytes = 0, tx_bytes = 0;
 	u64 tcp_retransmits = 0;
+	u64 socket_rx_bytes, socket_tx_bytes;
 	u64 drops = 0;
 	int socket_total = 0, tcp_count = 0, udp_count = 0, unix_count = 0;
 	struct netdev_count netdevs[ELF_DET_NETDEV_MAX];
 	int netdev_len = 0;
+	struct top_talker_entry top_talkers[ELF_DET_TOP_TALKERS_MAX];
+	int top_talker_len = 0;
 	int ifindex;
 	struct net_device *dev;
 	const char *dev_name;
 	int i;
+
+	memset(top_talkers, 0, sizeof(top_talkers));
 
 	files = task->files;
 	if (!files)
@@ -331,6 +336,9 @@ static void print_network_stats(struct seq_file *m, struct task_struct *task)
 		if (!sk)
 			continue;
 
+		socket_rx_bytes = 0;
+		socket_tx_bytes = 0;
+
 		drops += (u64)atomic_read(&sk->sk_drops);
 
 		if (sk->sk_protocol == IPPROTO_TCP) {
@@ -338,15 +346,24 @@ static void print_network_stats(struct seq_file *m, struct task_struct *task)
 			tcp_count++;
 			rx_packets += (u64)READ_ONCE(tp->segs_in);
 			tx_packets += (u64)READ_ONCE(tp->segs_out);
-			rx_bytes += (u64)READ_ONCE(tp->bytes_received);
-			tx_bytes += (u64)READ_ONCE(tp->bytes_sent);
+			socket_rx_bytes = (u64)READ_ONCE(tp->bytes_received);
+			socket_tx_bytes = (u64)READ_ONCE(tp->bytes_sent);
+			rx_bytes += socket_rx_bytes;
+			tx_bytes += socket_tx_bytes;
 			tcp_retransmits += (u64)READ_ONCE(tp->retrans_out);
 		} else if (sk->sk_protocol == IPPROTO_UDP) {
 			udp_count++;
+			socket_rx_bytes = (u64)sk_rmem_alloc_get(sk);
+			socket_tx_bytes = (u64)READ_ONCE(sk->sk_wmem_queued);
 		}
 
 		if (sk->sk_family == AF_UNIX)
 			unix_count++;
+
+		try_insert_top_talker(top_talkers, &top_talker_len,
+				      ELF_DET_TOP_TALKERS_MAX, fd,
+				      sk->sk_family, sk->sk_protocol,
+				      socket_rx_bytes, socket_tx_bytes);
 
 		ifindex = READ_ONCE(sk->sk_bound_dev_if);
 		if (!ifindex)
@@ -373,16 +390,32 @@ static void print_network_stats(struct seq_file *m, struct task_struct *task)
 
 	if (netdev_len == 0) {
 		seq_puts(m, "net_devices: none\n");
+	} else {
+		seq_puts(m, "net_devices: ");
+		for (i = 0; i < netdev_len; i++) {
+			seq_printf(m, "%s=%d", netdevs[i].name,
+				   netdevs[i].count);
+			if (i + 1 < netdev_len)
+				seq_puts(m, " ");
+		}
+		seq_puts(m, "\n");
+	}
+
+	seq_puts(m, "top_talkers:\n");
+	if (top_talker_len == 0) {
+		seq_puts(m, "  none\n");
 		return;
 	}
 
-	seq_puts(m, "net_devices: ");
-	for (i = 0; i < netdev_len; i++) {
-		seq_printf(m, "%s=%d", netdevs[i].name, netdevs[i].count);
-		if (i + 1 < netdev_len)
-			seq_puts(m, " ");
+	for (i = 0; i < top_talker_len; i++) {
+		seq_printf(m, "  #%d FD %u Proto: %-5s Family: %-10s ", i + 1,
+			   top_talkers[i].fd,
+			   socket_protocol_to_string(top_talkers[i].protocol),
+			   socket_family_to_string(top_talkers[i].family));
+		seq_printf(m, "RX bytes=%llu TX bytes=%llu Total bytes=%llu\n",
+			   top_talkers[i].rx_bytes, top_talkers[i].tx_bytes,
+			   top_talkers[i].total_bytes);
 	}
-	seq_puts(m, "\n");
 }
 
 /* Display open socket information for the process

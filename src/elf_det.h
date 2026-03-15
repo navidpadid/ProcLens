@@ -213,12 +213,82 @@ struct memory_region {
 
 #define ELF_DET_NETDEV_MAX	8
 #define ELF_DET_NETDEV_NAME_MAX IFNAMSIZ
+#define ELF_DET_TOP_TALKERS_MAX 3
 
 struct netdev_count {
 	int ifindex;
 	int count;
 	char name[ELF_DET_NETDEV_NAME_MAX];
 };
+
+struct top_talker_entry {
+	unsigned int fd;
+	unsigned short family;
+	unsigned short protocol;
+	eh_u64 rx_bytes;
+	eh_u64 tx_bytes;
+	eh_u64 total_bytes;
+};
+
+/* Insert/keep top sockets by total bytes in descending order.
+ * Entries with total_bytes == 0 are ignored.
+ */
+static inline void try_insert_top_talker(struct top_talker_entry *list,
+					 int *list_len,
+					 int max_entries,
+					 unsigned int fd,
+					 unsigned short family,
+					 unsigned short protocol,
+					 eh_u64 rx_bytes,
+					 eh_u64 tx_bytes)
+{
+	int i;
+	int insert_at;
+	int current_len;
+	eh_u64 total_bytes;
+	struct top_talker_entry entry;
+
+	if (!list || !list_len || max_entries <= 0)
+		return;
+
+	total_bytes = rx_bytes + tx_bytes;
+	if (total_bytes == 0)
+		return;
+
+	entry.fd = fd;
+	entry.family = family;
+	entry.protocol = protocol;
+	entry.rx_bytes = rx_bytes;
+	entry.tx_bytes = tx_bytes;
+	entry.total_bytes = total_bytes;
+
+	current_len = *list_len;
+	if (current_len > max_entries)
+		current_len = max_entries;
+
+	insert_at = current_len;
+	for (i = 0; i < current_len; i++) {
+		if (total_bytes > list[i].total_bytes) {
+			insert_at = i;
+			break;
+		}
+	}
+
+	if (current_len < max_entries) {
+		for (i = current_len; i > insert_at; i--)
+			list[i] = list[i - 1];
+		list[insert_at] = entry;
+		*list_len = current_len + 1;
+		return;
+	}
+
+	if (insert_at >= max_entries)
+		return;
+
+	for (i = max_entries - 1; i > insert_at; i--)
+		list[i] = list[i - 1];
+	list[insert_at] = entry;
+}
 
 /* Format size with appropriate unit (B, KB, MB)
  * Returns number of characters written (excluding null terminator)

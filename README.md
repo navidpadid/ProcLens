@@ -28,7 +28,7 @@
 - **Memory Pressure Monitoring**: RSS, VSZ, swap usage, page faults (major/minor), and OOM score adjustment
 - **Visual Memory Map**: Proportional bar chart visualization of memory regions
 - **Open Sockets**: List all open sockets with family, type, state, protocol, addresses, and per-socket traffic stats
-- **Network Stats (Brief)**: Per-process TCP counters, socket counts (TCP/UDP/UNIX), drops, and net devices
+- **Network Stats (Brief)**: Per-process TCP counters, socket counts (TCP/UDP/UNIX), drops, net devices, and top talkers
 - **Thread Information**: List all threads with TID, state, CPU usage, priority, and CPU affinity
 - **CPU Usage Tracking**: Real-time CPU percentage calculation per process and thread
 - **ELF Section Analysis**: Binary base address and section boundaries
@@ -106,6 +106,9 @@ tx_bytes: 37736732
 tcp_retransmits: 0
 drops: 0
 net_devices: lo=1 eth0=1
+top_talkers:
+  #1 FD 59 Proto: TCP   Family: AF_INET    RX bytes=512004 TX bytes=233911 Total bytes=745915
+  #2 FD 23 Proto: TCP   Family: AF_INET    RX bytes=150387 TX bytes=147030 Total bytes=297417
 
 Open Sockets:
 --------------------------------------------------------------------------------
@@ -289,6 +292,7 @@ ProcLens/
 - **Open Sockets**: Shows file descriptor, socket family, type, state, protocol, addresses, and traffic stats for TCP/UDP sockets
 - Socket families: AF_INET (IPv4), AF_INET6 (IPv6), AF_UNIX (Unix domain), AF_NETLINK (Netlink)
 - UDP traffic values are queue-based (current queued packets/bytes), while TCP traffic values are lifetime socket counters.
+- **Top Talkers**: The `[network]` section includes up to three sockets ranked by total bytes (`RX + TX`) at read time.
 - Thread STATE: R=Running, S=Sleeping, D=Uninterruptible, T=Stopped, t=Traced, Z=Zombie, X=Dead
 - PRIORITY: Shown as nice value (-20 to 19, where lower is higher priority)
 - CPU_AFFINITY: Shows which CPUs the thread can run on
