@@ -77,10 +77,12 @@ The process information output includes a brief network stats section, aggregate
 | **tcp_retransmits** | TCP retransmitted segments | `struct tcp_sock::retrans_out` |
 | **drops** | Raw/UDP drops | `struct sock::sk_drops` |
 | **net_devices** | Device names with socket counts | `sk_bound_dev_if` or `sk_rx_dst_ifindex` |
+| **top_talkers** | Up to 3 sockets ranked by total bytes (RX + TX) | Per-socket TCP lifetime bytes, UDP queued bytes |
 
 Notes:
 - Packet and byte counters are best-effort and only reflect TCP sockets. UDP and UNIX sockets are counted but do not contribute to byte/packet totals.
 - Device mapping uses the socket bound interface or RX route ifindex; if neither is set, the socket is not attributed to a device.
+- Top talkers ranking can include UDP sockets using queued RX/TX memory (`sk_rmem_alloc` + `sk_wmem_queued`).
 
 ### Important Notes and Limitations
 

@@ -483,6 +483,41 @@ int main(void)
 	len = format_udp_traffic_line(1, 1, 1, 1, traffic_buf, 10);
 	assert(len == 0);
 
+	/* top talkers ranking tests */
+	struct top_talker_entry talkers[ELF_DET_TOP_TALKERS_MAX];
+	int talker_len = 0;
+
+	memset(talkers, 0, sizeof(talkers));
+
+	try_insert_top_talker(talkers, &talker_len, ELF_DET_TOP_TALKERS_MAX, 10,
+			      2, 6, 500, 500);
+	assert(talker_len == 1);
+	assert(talkers[0].fd == 10);
+	assert(talkers[0].total_bytes == 1000);
+
+	try_insert_top_talker(talkers, &talker_len, ELF_DET_TOP_TALKERS_MAX, 20,
+			      2, 6, 100, 100);
+	try_insert_top_talker(talkers, &talker_len, ELF_DET_TOP_TALKERS_MAX, 30,
+			      1, 17, 700, 500);
+	assert(talker_len == 3);
+	assert(talkers[0].fd == 30);
+	assert(talkers[0].total_bytes == 1200);
+	assert(talkers[1].fd == 10);
+	assert(talkers[2].fd == 20);
+
+	/* Replaces the current lowest-ranked entry */
+	try_insert_top_talker(talkers, &talker_len, ELF_DET_TOP_TALKERS_MAX, 40,
+			      10, 6, 300, 300);
+	assert(talker_len == 3);
+	assert(talkers[2].fd == 40);
+	assert(talkers[2].total_bytes == 600);
+
+	/* Zero-traffic entries are ignored */
+	try_insert_top_talker(talkers, &talker_len, ELF_DET_TOP_TALKERS_MAX, 50,
+			      2, 6, 0, 0);
+	assert(talker_len == 3);
+	assert(talkers[0].fd == 30);
+
 	/* socket_state_to_string tests */
 	const char *state_str;
 
