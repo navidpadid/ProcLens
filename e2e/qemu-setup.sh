@@ -8,10 +8,14 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 QEMU_DIR="$SCRIPT_DIR/qemu-env"
 UBUNTU_VERSION="24.04"
 IMAGE_URL="https://cloud-images.ubuntu.com/releases/${UBUNTU_VERSION}/release/ubuntu-${UBUNTU_VERSION}-server-cloudimg-amd64.img"
+HOST_KERNEL_RELEASE="$(uname -r)"
+INSTANCE_ID_SUFFIX="${HOST_KERNEL_RELEASE//[^a-zA-Z0-9-]/-}"
+INSTANCE_ID="kernel-test-vm-${INSTANCE_ID_SUFFIX}"
 
 echo "==================================================="
 echo "QEMU Testing Environment Setup"
 echo "==================================================="
+echo "Host kernel release detected: ${HOST_KERNEL_RELEASE}"
 
 # Attempt to install QEMU automatically if missing
 install_qemu_if_missing() {
@@ -79,6 +83,9 @@ fi
 mkdir -p "$QEMU_DIR"
 cd "$QEMU_DIR"
 
+# Persist host kernel target for debugging and run-time visibility
+printf '%s\n' "$HOST_KERNEL_RELEASE" > host-kernel-release
+
 # Download Ubuntu cloud image if not exists
 if [ ! -f "ubuntu-${UBUNTU_VERSION}.img" ]; then
     echo "Downloading Ubuntu ${UBUNTU_VERSION} cloud image..."
@@ -136,18 +143,40 @@ EOF
 fi
 cat >> user-data.yaml << 'EOF'
 
-packages:
-  - build-essential
-  - linux-headers-generic
-  - kmod
-  - git
-  - vim
-  - net-tools
-
 runcmd:
   - echo "ubuntu:ubuntu" | chpasswd
-  - apt-get update
-  - apt-get install -y linux-headers-$(uname -r) || true
+  - |
+    set -e
+    export DEBIAN_FRONTEND=noninteractive
+
+    # Recover from interrupted package operations if cloud-init/apt left dpkg dirty.
+    rm -f /var/lib/dpkg/updates/* || true
+    dpkg --configure -a || true
+
+    apt-get update
+    apt-get install -y --reinstall make build-essential kmod git vim net-tools
+
+    # Ensure make is healthy; some broken images can contain a zero-byte binary.
+    if [ ! -x "$(command -v make)" ] || [ ! -s "$(command -v make)" ]; then
+      apt-get install -y --reinstall make build-essential
+    fi
+EOF
+
+cat >> user-data.yaml << EOF
+  - |
+    set -e
+    export DEBIAN_FRONTEND=noninteractive
+    rm -f /var/lib/dpkg/updates/* || true
+    dpkg --configure -a || true
+    if ! apt-get install -y linux-image-${HOST_KERNEL_RELEASE} linux-headers-${HOST_KERNEL_RELEASE}; then
+      echo "Failed to install host-matching kernel packages: ${HOST_KERNEL_RELEASE}" >&2
+      exit 1
+    fi
+  - update-grub || true
+  - echo "${HOST_KERNEL_RELEASE}" > /etc/host-kernel-release-target
+EOF
+
+cat >> user-data.yaml << 'EOF'
   - systemctl enable serial-getty@ttyS0.service
   - systemctl start serial-getty@ttyS0.service
 
@@ -166,8 +195,8 @@ EOF
 
 # Create meta-data file (required by cloud-init)
 echo "Creating cloud-init meta-data..."
-cat > meta-data << 'EOF'
-instance-id: kernel-test-vm-001
+cat > meta-data << EOF
+instance-id: ${INSTANCE_ID}
 local-hostname: kernel-test-vm
 EOF
 
@@ -195,6 +224,7 @@ echo "==================================================="
 echo ""
 echo "VM Details:"
 echo "  - OS: Ubuntu ${UBUNTU_VERSION}"
+echo "  - Target kernel release: ${HOST_KERNEL_RELEASE}"
 echo "  - Username: ubuntu"
 if [ -n "$SSH_KEY" ]; then
 echo "  - SSH: Key-based authentication enabled"
@@ -206,7 +236,7 @@ fi
 echo "  - SSH Port: 2222 (forwarded from host)"
 echo ""
 echo "Next steps:"
-echo "  1. Run: ./e2e/qemu-run.sh"
+echo "  1. Run: sudo ./e2e/qemu-run.sh"
 if [ -n "$SSH_KEY" ]; then
 echo "  2. SSH without password: ssh -p 2222 ubuntu@localhost"
 else

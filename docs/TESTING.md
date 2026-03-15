@@ -22,26 +22,27 @@ For maximum safety, test the kernel module in an isolated QEMU virtual machine.
 
 ```bash
 # One-time setup
-./e2e/qemu-setup.sh
+sudo ./e2e/qemu-setup.sh
 
 # Start VM
-./e2e/qemu-run.sh
+sudo ./e2e/qemu-run.sh
 
 # In another terminal, run automated tests
-./e2e/qemu-test.sh
+sudo ./e2e/qemu-test.sh
 ```
 
 ### What QEMU Testing Does
 
 - Downloads Ubuntu 24.04 VM image
-- Configures VM with kernel headers
+- Configures VM to install kernel and headers matching host `uname -r`
+- Installs build prerequisites and repairs interrupted package state during setup
 - Provides SSH access on port 2222
 - Completely isolates module testing from your host
 - Automated build, install, test, and uninstall cycle
 
 ### Manual Testing in QEMU
 
-After starting the VM with `./e2e/qemu-run.sh`:
+After starting the VM with `sudo ./e2e/qemu-run.sh`:
 
 ```bash
 # SSH into the VM
@@ -49,7 +50,7 @@ ssh -p 2222 ubuntu@localhost
 # Password: ubuntu
 
 # Inside VM - build and test
-cd kernel_module
+cd ProcLens
 make clean && make all
 sudo make install
 ./build/proc_elf_ctrl
@@ -77,7 +78,7 @@ sudo make uninstall
 ```bash
 # Remove QEMU environment and start fresh
 rm -rf e2e/qemu-env/
-./e2e/qemu-setup.sh
+sudo ./e2e/qemu-setup.sh
 ```
 
 ## Kernel Compatibility

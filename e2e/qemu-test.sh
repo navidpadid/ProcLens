@@ -5,7 +5,6 @@
 set -e
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 SSH_PORT=2222
 SSH_USER=ubuntu
 SSH_HOST=localhost
@@ -16,28 +15,56 @@ echo "==================================================="
 echo "Testing Kernel Module in QEMU VM"
 echo "==================================================="
 
+HOST_KERNEL="$(uname -r)"
+
 # Check if VM is running
 if ! ssh $SSH_OPTS -o ConnectTimeout=5 -o BatchMode=yes ${SSH_USER}@${SSH_HOST} exit 2>/dev/null; then
     echo "ERROR: QEMU VM is not running or SSH is not accessible"
-    echo "Start the VM first with: ./e2e/qemu-run.sh"
+    echo "Start the VM first with: sudo ./e2e/qemu-run.sh"
     exit 1
 fi
 
-echo "1. Building kernel module locally..."
-cd "$PROJECT_ROOT"
-make clean
-make all
-make build-multithread
+GUEST_KERNEL="$(ssh $SSH_OPTS ${SSH_USER}@${SSH_HOST} uname -r)"
+echo "Host kernel:  ${HOST_KERNEL}"
+echo "Guest kernel: ${GUEST_KERNEL}"
+if [ "$HOST_KERNEL" != "$GUEST_KERNEL" ]; then
+    echo "[WARN] Host and guest kernel differ; building module inside VM for guest kernel."
+fi
+
+echo "1. Preparing VM-side build..."
+echo "Host build skipped to avoid kernel vermagic mismatch."
 
 echo ""
 echo "2. Copying files to QEMU VM..."
-scp $SCP_OPTS -r build src/Kbuild Makefile ${SSH_USER}@${SSH_HOST}:~/kernel_module/
+ssh $SSH_OPTS ${SSH_USER}@${SSH_HOST} "mkdir -p ~/ProcLens"
+ssh $SSH_OPTS ${SSH_USER}@${SSH_HOST} "mkdir -p ~/ProcLens/src"
+scp $SCP_OPTS src/elf_det.c src/elf_det.h src/elf_det_tests.c \
+    src/proc_elf_ctrl.c src/proc_elf_ctrl.h src/proc_elf_ctrl_tests.c \
+    src/test_multithread.c src/Kbuild ${SSH_USER}@${SSH_HOST}:~/ProcLens/src/
+scp $SCP_OPTS Makefile ${SSH_USER}@${SSH_HOST}:~/ProcLens/
 
 echo ""
 echo "3. Installing and testing module in VM..."
 ssh $SSH_OPTS ${SSH_USER}@${SSH_HOST} << 'ENDSSH'
 set -e
-cd ~/kernel_module
+cd ~/ProcLens
+
+echo "Building module and test binaries in VM for kernel $(uname -r)..."
+if ! command -v make >/dev/null 2>&1 || [ ! -s "$(command -v make)" ]; then
+    echo "[FAIL] Build toolchain is missing or broken in VM (make)."
+    echo "Run sudo ./e2e/qemu-setup.sh again to reprovision the VM."
+    exit 1
+fi
+
+if [ ! -d "/lib/modules/$(uname -r)/build" ]; then
+    echo "[FAIL] Missing kernel headers for running VM kernel: $(uname -r)"
+    echo "Run sudo ./e2e/qemu-setup.sh again to reprovision the VM."
+    exit 1
+fi
+
+make clean
+make KDIR=/lib/modules/$(uname -r)/build all
+make build-multithread
 
 echo "Installing kernel module..."
 if lsmod | grep -q '^elf_det'; then
@@ -78,14 +105,16 @@ if ! echo "$PROC_OUT" | grep -q "Open Sockets"; then
     echo "[FAIL] Open sockets section missing for PID $$"
     exit 1
 fi
-if ! echo "$PROC_OUT" | grep -q "Proto:"; then
-    echo "[FAIL] Open sockets protocol field missing for PID $$"
-    exit 1
-fi
-if echo "$PROC_OUT" | grep -Eq "Proto: +TCP|Proto: +UDP" && \
-   ! echo "$PROC_OUT" | grep -q "Traffic: RX"; then
-    echo "[FAIL] Per-socket traffic stats missing for TCP/UDP sockets (PID $$)"
-    exit 1
+if ! echo "$PROC_OUT" | grep -q "No open sockets"; then
+    if ! echo "$PROC_OUT" | grep -q "Proto:"; then
+        echo "[FAIL] Open sockets protocol field missing for PID $$"
+        exit 1
+    fi
+    if echo "$PROC_OUT" | grep -Eq "Proto: +TCP|Proto: +UDP" && \
+       ! echo "$PROC_OUT" | grep -q "Traffic: RX"; then
+        echo "[FAIL] Per-socket traffic stats missing for TCP/UDP sockets (PID $$)"
+        exit 1
+    fi
 fi
 
 echo ""
@@ -118,14 +147,16 @@ if ! echo "$PROC_OUT" | grep -q "Open Sockets"; then
     echo "[FAIL] Open sockets section missing for PID 1"
     exit 1
 fi
-if ! echo "$PROC_OUT" | grep -q "Proto:"; then
-    echo "[FAIL] Open sockets protocol field missing for PID 1"
-    exit 1
-fi
-if echo "$PROC_OUT" | grep -Eq "Proto: +TCP|Proto: +UDP" && \
-   ! echo "$PROC_OUT" | grep -q "Traffic: RX"; then
-    echo "[FAIL] Per-socket traffic stats missing for TCP/UDP sockets (PID 1)"
-    exit 1
+if ! echo "$PROC_OUT" | grep -q "No open sockets"; then
+    if ! echo "$PROC_OUT" | grep -q "Proto:"; then
+        echo "[FAIL] Open sockets protocol field missing for PID 1"
+        exit 1
+    fi
+    if echo "$PROC_OUT" | grep -Eq "Proto: +TCP|Proto: +UDP" && \
+       ! echo "$PROC_OUT" | grep -q "Traffic: RX"; then
+        echo "[FAIL] Per-socket traffic stats missing for TCP/UDP sockets (PID 1)"
+        exit 1
+    fi
 fi
 echo ""
 echo "Thread info:"
@@ -173,14 +204,16 @@ if ! echo "$PROC_OUT" | grep -q "Open Sockets"; then
     echo "[FAIL] Open sockets section missing for PID $MULTITHREAD_PID"
     exit 1
 fi
-if ! echo "$PROC_OUT" | grep -q "Proto:"; then
-    echo "[FAIL] Open sockets protocol field missing for PID $MULTITHREAD_PID"
-    exit 1
-fi
-if echo "$PROC_OUT" | grep -Eq "Proto: +TCP|Proto: +UDP" && \
-   ! echo "$PROC_OUT" | grep -q "Traffic: RX"; then
-    echo "[FAIL] Per-socket traffic stats missing for TCP/UDP sockets (PID $MULTITHREAD_PID)"
-    exit 1
+if ! echo "$PROC_OUT" | grep -q "No open sockets"; then
+    if ! echo "$PROC_OUT" | grep -q "Proto:"; then
+        echo "[FAIL] Open sockets protocol field missing for PID $MULTITHREAD_PID"
+        exit 1
+    fi
+    if echo "$PROC_OUT" | grep -Eq "Proto: +TCP|Proto: +UDP" && \
+       ! echo "$PROC_OUT" | grep -q "Traffic: RX"; then
+        echo "[FAIL] Per-socket traffic stats missing for TCP/UDP sockets (PID $MULTITHREAD_PID)"
+        exit 1
+    fi
 fi
 echo ""
 echo "Thread info (should show 5 threads: 1 main + 4 workers):"

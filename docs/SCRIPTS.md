@@ -6,9 +6,9 @@ Scripts for testing ProcLens in isolated QEMU virtual machines.
 
 ```bash
 # QEMU Testing
-./e2e/qemu-setup.sh      # One-time setup
-./e2e/qemu-run.sh         # Start VM
-./e2e/qemu-test.sh        # Automated tests (run from host in another terminal)
+sudo ./e2e/qemu-setup.sh      # One-time setup
+sudo ./e2e/qemu-run.sh         # Start VM
+sudo ./e2e/qemu-test.sh        # Automated tests (run from host in another terminal)
 
 # Other utilities
 ./.github/pre-commit.sh       # Pre-commit hook (auto-installed in dev container)
@@ -23,7 +23,9 @@ Scripts for testing ProcLens in isolated QEMU virtual machines.
 **What it does**:
 - Downloads Ubuntu 24.04 cloud image (~700MB)
 - Creates cloud-init configuration for VM
-- Sets up VM with kernel headers pre-installed
+- Installs VM kernel and headers matching the host `uname -r`
+- Provisions VM build dependencies (`make`, `build-essential`, `kmod`, `git`, `vim`, `net-tools`)
+- Repairs interrupted dpkg state during first-boot provisioning
 - Configures SSH access with default credentials
 
 **Requirements**:
@@ -42,6 +44,7 @@ Scripts for testing ProcLens in isolated QEMU virtual machines.
 - Allocates 2GB RAM and 2 CPU cores
 - Enables KVM acceleration if available
 - Provides serial console access
+- Performs no installation; expects `qemu-setup.sh` to have provisioned host and VM prerequisites
 
 **VM Access**:
 - SSH: `ssh -p 2222 ubuntu@localhost`
@@ -64,16 +67,17 @@ Scripts for testing ProcLens in isolated QEMU virtual machines.
 8. Cleans up
 
 **Requirements**:
-- QEMU VM must be running (`qemu-run.sh`)
+- QEMU VM must be running (`sudo ./e2e/qemu-run.sh`)
 - SSH access configured (done by `qemu-setup.sh`)
+- VM prerequisites are expected to be pre-provisioned by `qemu-setup.sh`
 
 **Usage**:
 ```bash
 # Start VM in one terminal
-./e2e/qemu-run.sh
+sudo ./e2e/qemu-run.sh
 
 # Run tests from another terminal
-./e2e/qemu-test.sh
+sudo ./e2e/qemu-test.sh
 ```
 
 **Output**: Shows build process, module loading, test results, and kernel logs.
@@ -113,7 +117,7 @@ git commit --no-verify -m "message"
 
 ### VM Specifications
 - **OS**: Ubuntu 24.04 LTS
-- **Kernel**: 6.8+
+- **Kernel**: Matches host kernel release (`uname -r`)
 - **RAM**: 2GB
 - **CPUs**: 2 cores
 - **Disk**: 10GB (cloud image)
@@ -154,7 +158,7 @@ scp -P 2222 ubuntu@localhost:~/remotefile.txt ./
 ```bash
 rsync -avz --exclude='.git' --exclude='build' \
   -e "ssh -p 2222 -o StrictHostKeyChecking=no" \
-  ./ ubuntu@localhost:~/kernel_module/
+  ./ ubuntu@localhost:~/ProcLens/
 ```
 
 ## Cleanup and Maintenance
@@ -167,7 +171,7 @@ rm -rf e2e/qemu-env/
 ### Reinstall Fresh VM
 ```bash
 rm -rf e2e/qemu-env/
-./e2e/qemu-setup.sh
+sudo ./e2e/qemu-setup.sh
 ```
 
 ### Check VM Status
