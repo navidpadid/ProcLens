@@ -115,6 +115,17 @@ make clean
 make all
 ```
 
+If you are developing from WSL or macOS using Docker/dev containers, the container
+kernel may not provide a usable `/lib/modules/$(uname -r)/build` tree. When you
+see errors like `No such file or directory` for that path, run the QEMU e2e flow
+instead of building modules directly in the container:
+
+```bash
+sudo ./e2e/qemu-setup.sh
+sudo ./e2e/qemu-run.sh
+sudo ./e2e/qemu-test.sh
+```
+
 ### Permission denied when running user program
 
 ```bash

@@ -185,6 +185,23 @@ Total threads: 15
    ./build/proc_elf_ctrl
    ```
 
+> **Caveat for WSL/macOS + Docker dev containers:**
+> If your container kernel does not expose matching host kernel sources/headers,
+> direct module builds can fail with errors like:
+>
+> ```text
+> make -C /lib/modules/$(uname -r)/build M=/workspaces/ProcLens/src modules
+> make[1]: *** /lib/modules/.../build: No such file or directory.  Stop.
+> ```
+>
+> In that case, use the isolated QEMU workflow instead:
+>
+> ```bash
+> sudo ./e2e/qemu-setup.sh
+> sudo ./e2e/qemu-run.sh
+> sudo ./e2e/qemu-test.sh
+> ```
+
 ### Uninstall the Module
 
 ```bash

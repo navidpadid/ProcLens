@@ -8,8 +8,23 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 SSH_PORT=2222
 SSH_USER=ubuntu
 SSH_HOST=localhost
-SSH_OPTS="-p $SSH_PORT -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR"
+SSH_OPTS="-p $SSH_PORT -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR -o PreferredAuthentications=publickey,password -o PubkeyAuthentication=yes -o PasswordAuthentication=yes"
 SCP_OPTS="-P $SSH_PORT -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null -o LogLevel=ERROR"
+
+INVOKING_USER="${SUDO_USER:-$USER}"
+INVOKING_HOME="$(getent passwd "$INVOKING_USER" | cut -d: -f6)"
+SSH_IDENTITY=""
+
+if [ -n "$INVOKING_HOME" ] && [ -f "$INVOKING_HOME/.ssh/id_ed25519" ]; then
+    SSH_IDENTITY="$INVOKING_HOME/.ssh/id_ed25519"
+elif [ -n "$INVOKING_HOME" ] && [ -f "$INVOKING_HOME/.ssh/id_rsa" ]; then
+    SSH_IDENTITY="$INVOKING_HOME/.ssh/id_rsa"
+fi
+
+if [ -n "$SSH_IDENTITY" ]; then
+    SSH_OPTS="$SSH_OPTS -i $SSH_IDENTITY -o IdentitiesOnly=yes"
+    SCP_OPTS="$SCP_OPTS -i $SSH_IDENTITY -o IdentitiesOnly=yes"
+fi
 
 echo "==================================================="
 echo "Testing Kernel Module in QEMU VM"
@@ -17,10 +32,27 @@ echo "==================================================="
 
 HOST_KERNEL="$(uname -r)"
 
-# Check if VM is running
-if ! ssh $SSH_OPTS -o ConnectTimeout=5 -o BatchMode=yes ${SSH_USER}@${SSH_HOST} exit 2>/dev/null; then
-    echo "ERROR: QEMU VM is not running or SSH is not accessible"
+# Wait for VM SSH port to become reachable
+echo "Waiting for QEMU SSH endpoint (${SSH_HOST}:${SSH_PORT})..."
+VM_SSH_READY=0
+for _ in $(seq 1 30); do
+    if timeout 1 bash -c "cat < /dev/null > /dev/tcp/${SSH_HOST}/${SSH_PORT}" 2>/dev/null; then
+        VM_SSH_READY=1
+        break
+    fi
+    sleep 2
+done
+
+if [ "$VM_SSH_READY" -ne 1 ]; then
+    echo "ERROR: QEMU VM SSH endpoint is not reachable at ${SSH_HOST}:${SSH_PORT}"
     echo "Start the VM first with: sudo ./e2e/qemu-run.sh"
+    exit 1
+fi
+
+# Validate SSH authentication (supports key or password authentication)
+if ! ssh $SSH_OPTS -o ConnectTimeout=10 ${SSH_USER}@${SSH_HOST} exit; then
+    echo "ERROR: QEMU VM is reachable, but SSH authentication failed"
+    echo "Use key-based auth or log in with password 'ubuntu' when prompted"
     exit 1
 fi
 
