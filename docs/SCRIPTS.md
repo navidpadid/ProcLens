@@ -12,7 +12,6 @@ sudo ./e2e/qemu-test.sh        # Automated tests (run from host in another termi
 
 # Other utilities
 ./.github/pre-commit.sh       # Pre-commit hook (auto-installed in dev container)
-./e2e/quick-reference.sh      # Display quick reference guide
 ```
 
 ## Script Descriptions
@@ -95,22 +94,6 @@ sudo ./e2e/qemu-test.sh
 **Manual bypass** (use sparingly):
 ```bash
 git commit --no-verify -m "message"
-```
-
-### `quick-reference.sh`
-**Purpose**: Display comprehensive quick reference guide
-
-**What it shows**:
-- Local testing commands
-- QEMU setup and usage
-- Build targets
-- Memory information extracted
-- Important limitations
-- Troubleshooting tips
-
-**Usage**:
-```bash
-./e2e/quick-reference.sh
 ```
 
 ## QEMU VM Details
