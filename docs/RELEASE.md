@@ -27,9 +27,11 @@ To explicitly skip releasing on a merged PR, add:
 
 The workflow will automatically:
 1. Determine the new version number
-2. Update the changelog in README.md
-3. Create a git tag
-4. Create a GitHub release with release notes
+2. Generate release notes from PR metadata (or manual dispatch context)
+3. Build binaries for `amd64` and `arm64`
+4. Bundle artifacts and checksum into a release archive
+5. Create a git tag
+6. Create a GitHub release with release notes and packaged binaries
 
 ### Method 2: Manual Workflow Dispatch
 
@@ -44,10 +46,16 @@ You can manually trigger a release from the GitHub Actions tab:
 ## What Happens During a Release
 
 1. **Version Calculation**: The workflow reads the latest git tag and calculates the new version based on the bump type
-2. **Changelog Update**: Adds an entry to the README.md changelog section
-3. **Git Tag Creation**: Creates an annotated git tag (e.g., `v1.4.0`)
-4. **GitHub Release**: Creates a release on GitHub with auto-generated release notes
-5. **Version Commit**: Pushes the updated README.md back to the repository
+2. **Release Notes Generation**:
+	- For PR releases, notes include a `Changelog` section with PR title/body
+	- Notes include version/type metadata
+	- Notes include a `Binary package includes` section summarizing packaged contents and quick-start commands
+3. **Binary Builds**: Builds `elf_det.ko` and `proc_elf_ctrl` for both `amd64` and `arm64`
+4. **Packaging**: Produces a bundled archive named `elf_det-binaries-vX.Y.Z-linux-6.8.0.tar.gz` plus a `.sha256` checksum file
+5. **Git Tag Creation**: Creates an annotated git tag (e.g., `v1.4.0`) if it does not already exist
+6. **GitHub Release**: Creates a release on GitHub using the generated release notes and uploads the archive + checksum
+
+> Note: The workflow does **not** update `README.md` and does **not** create a version commit.
 
 ## Version Numbering
 
@@ -87,9 +95,6 @@ The current version can be found by:
 ```bash
 # Check the latest git tag
 git describe --tags --abbrev=0
-
-# Or check the README.md changelog
-grep "### Version" README.md | head -n1
 ```
 
 ## Example Workflows
@@ -166,19 +171,16 @@ The workflow needs `contents: write` permissions. Check:
 If you need to create a release manually:
 
 ```bash
-# Update version in README.md
-vim README.md  # Add changelog entry
-
-# Commit changes
-git add README.md
-git commit -m "chore: release v1.4.0"
-
 # Create and push tag
 git tag -a v1.4.0 -m "Release v1.4.0"
 git push origin main
 git push origin v1.4.0
 
+# Build and package binaries (matching workflow behavior)
+make clean && make all
+
 # Create GitHub release manually through web interface
+# Upload bundled archive and checksum
 ```
 
 ## See Also
