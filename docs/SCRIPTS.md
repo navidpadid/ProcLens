@@ -103,7 +103,7 @@ git commit --no-verify -m "message"
 - **Kernel**: Matches host kernel release (`uname -r`)
 - **RAM**: 2GB
 - **CPUs**: 2 cores
-- **Disk**: 10GB (cloud image)
+- **Disk**: 20GB (resized cloud image)
 - **Network**: User-mode networking with port forwarding
 
 ### Default Credentials
