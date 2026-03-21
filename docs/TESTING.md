@@ -83,14 +83,15 @@ sudo ./e2e/qemu-setup.sh
 
 ## Kernel Compatibility
 
-The module has been tested on:
-- Ubuntu 20.04 LTS (Kernel 5.15+)
-- Ubuntu 22.04 LTS (Kernel 5.19+)
-- Ubuntu 24.04 LTS (Kernel 6.8+)
+Validated testing path in this repository:
+- QEMU image: Ubuntu 24.04 LTS
+- Guest kernel: installed to match host `uname -r` during `qemu-setup.sh`
 
 **Requirements:**
 - Kernel 5.6+ required (proc_ops API)
 - Kernel 6.8+ recommended (VMA iterator API with maple tree)
+
+For reproducible results, use the QEMU workflow (`qemu-setup.sh`, `qemu-run.sh`, `qemu-test.sh`).
 
 ## Troubleshooting
 
