@@ -212,6 +212,7 @@ Located in `e2e/` directory:
 - `qemu-setup.sh` - Initialize QEMU VM
 - `qemu-run.sh` - Start VM in background
 - `qemu-test.sh` - Run tests in VM
+- `quick-reference.sh` - Common commands
 
 Tests validate actual kernel module behavior in isolated environment.
 

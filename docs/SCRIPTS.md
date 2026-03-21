@@ -12,6 +12,7 @@ sudo ./e2e/qemu-test.sh        # Automated tests (run from host in another termi
 
 # Other utilities
 ./.github/pre-commit.sh       # Pre-commit hook (auto-installed in dev container)
+./e2e/quick-reference.sh      # Display quick reference guide
 ```
 
 ## Script Descriptions
@@ -96,6 +97,22 @@ sudo ./e2e/qemu-test.sh
 git commit --no-verify -m "message"
 ```
 
+### `quick-reference.sh`
+**Purpose**: Display comprehensive quick reference guide
+
+**What it shows**:
+- Local testing commands
+- QEMU setup and usage
+- Build targets
+- Memory information extracted
+- Important limitations
+- Troubleshooting tips
+
+**Usage**:
+```bash
+./e2e/quick-reference.sh
+```
+
 ## QEMU VM Details
 
 ### VM Specifications
@@ -103,7 +120,7 @@ git commit --no-verify -m "message"
 - **Kernel**: Matches host kernel release (`uname -r`)
 - **RAM**: 2GB
 - **CPUs**: 2 cores
-- **Disk**: 20GB (resized cloud image)
+- **Disk**: 10GB (cloud image)
 - **Network**: User-mode networking with port forwarding
 
 ### Default Credentials

@@ -3,7 +3,7 @@
 ## Kernel Module (`elf_det.c`)
 
 The kernel module creates entries in `/proc/elf_det/`:
-- `/proc/elf_det/pid` - Read/write file to set target PID and read back current buffer value
+- `/proc/elf_det/pid` - Write-only file to specify target PID
 - `/proc/elf_det/det` - Read-only file to retrieve process information
 - `/proc/elf_det/threads` - Read-only file to retrieve thread information
 
@@ -13,7 +13,7 @@ The kernel module creates entries in `/proc/elf_det/`:
 - `elfdet_threads_show()` - Gathers thread information for all threads in a process
 - `find_stack_vma_end()` - Finds stack VMA lower boundary by iterating VMAs
 - `procfile_write()` - Handles PID input from user space
-- `procfile_read()` - Returns formatted `/proc/elf_det/pid` buffer content
+- `procfile_read()` - Returns formatted process data
 
 ### Memory Information Extracted
 
