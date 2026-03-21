@@ -13,7 +13,6 @@ make check           # Run all static analysis checks
 make checkpatch      # Kernel coding style
 make sparse          # Kernel static analysis
 make cppcheck        # General C/C++ analysis
-CPPCHECK_JOBS=8 make cppcheck  # Optional: control cppcheck parallelism
 ```
 
 ## Tools Integrated
@@ -44,10 +43,6 @@ CPPCHECK_JOBS=8 make cppcheck  # Optional: control cppcheck parallelism
 - Comment formatting (/* */ style)
 - Macro usage patterns
 - Variable naming conventions
-
-**Project usage**:
-- `make checkpatch` runs `checkpatch.pl --no-tree --strict --file` on all `src/*.c` and `src/*.h`
-- The pre-commit hook runs checkpatch on staged `*.c` and `*.h` files
 
 ### 3. sparse
 **Purpose**: Semantic analysis for C code  
@@ -84,9 +79,7 @@ Pre-commit hooks are automatically installed on container startup.
 The pre-commit hook runs:
 - Code formatting checks
 - Cppcheck static analysis
-- Checkpatch validation for staged C/header files
-
-Hook location: `.github/pre-commit.sh`
+- Checkpatch coding style validation
 
 To bypass hooks (use sparingly):
 ```bash
@@ -126,15 +119,6 @@ make format
 # Run all checks
 make check
 
-# Optional stricter local gate before opening PR
-make format-check && make checkpatch && make sparse && make cppcheck
-
 # Commit (hooks run automatically)
 git commit -m "Your message"
 ```
-
-## Notes on Enforcement
-
-- `make check` is a convenience aggregator for static analysis output.
-- Some tool invocations in the Makefile are best-effort (`|| true`) to keep developer flow smooth.
-- For release/PR readiness, treat any checkpatch/sparse/cppcheck findings as actionable and resolve them.
