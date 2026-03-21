@@ -147,36 +147,36 @@ jobs:
               printf '\n---\n'
               printf '**Version**: %s | **Type**: %s\n\n' "$VERSION" "$BUMP_TYPE"
               printf '## Binary package includes\n\n'
-              printf '- `amd64/elf_det.ko`\n'
-              printf '- `amd64/proc_elf_ctrl`\n'
-              printf '- `arm64/elf_det.ko`\n'
-              printf '- `arm64/proc_elf_ctrl`\n'
-              printf '- `README-QUICKSTART.md`\n\n'
+              printf -- '- `amd64/elf_det.ko`\n'
+              printf -- '- `amd64/proc_elf_ctrl`\n'
+              printf -- '- `arm64/elf_det.ko`\n'
+              printf -- '- `arm64/proc_elf_ctrl`\n'
+              printf -- '- `README-QUICKSTART.md`\n\n'
               printf 'Quick Start summary:\n\n'
-              printf '- Supports Linux kernel `%s.x`\n' "${TARGET_KERNEL_BASE}"
-              printf '- Includes binaries for `amd64` (`x86_64`) and `arm64` (`aarch64`)\n'
-              printf '- Install module: `sudo insmod <arch>/elf_det.ko`\n'
-              printf '- Run user tool: `sudo ./<arch>/proc_elf_ctrl`\n'
-              printf '- Unload module: `sudo rmmod elf_det`\n'
+              printf -- '- Supports Linux kernel `%s.x`\n' "${TARGET_KERNEL_BASE}"
+              printf -- '- Includes binaries for `amd64` (`x86_64`) and `arm64` (`aarch64`)\n'
+              printf -- '- Install module: `sudo insmod <arch>/elf_det.ko`\n'
+              printf -- '- Run user tool: `sudo ./<arch>/proc_elf_ctrl`\n'
+              printf -- '- Unload module: `sudo rmmod elf_det`\n'
             } > /tmp/release_notes.md
           else
             # Manual workflow dispatch
             {
               printf '## Changelog\n\n'
-              printf '- Manual release triggered via workflow dispatch.\n\n'
+              printf -- '- Manual release triggered via workflow dispatch.\n\n'
               printf '**Version**: %s | **Type**: %s\n\n' "$VERSION" "$BUMP_TYPE"
               printf '## Binary package includes\n\n'
-              printf '- `amd64/elf_det.ko`\n'
-              printf '- `amd64/proc_elf_ctrl`\n'
-              printf '- `arm64/elf_det.ko`\n'
-              printf '- `arm64/proc_elf_ctrl`\n'
-              printf '- `README-QUICKSTART.md`\n\n'
+              printf -- '- `amd64/elf_det.ko`\n'
+              printf -- '- `amd64/proc_elf_ctrl`\n'
+              printf -- '- `arm64/elf_det.ko`\n'
+              printf -- '- `arm64/proc_elf_ctrl`\n'
+              printf -- '- `README-QUICKSTART.md`\n\n'
               printf 'Quick Start summary:\n\n'
-              printf '- Supports Linux kernel `%s.x`\n' "${TARGET_KERNEL_BASE}"
-              printf '- Includes binaries for `amd64` (`x86_64`) and `arm64` (`aarch64`)\n'
-              printf '- Install module: `sudo insmod <arch>/elf_det.ko`\n'
-              printf '- Run user tool: `sudo ./<arch>/proc_elf_ctrl`\n'
-              printf '- Unload module: `sudo rmmod elf_det`\n'
+              printf -- '- Supports Linux kernel `%s.x`\n' "${TARGET_KERNEL_BASE}"
+              printf -- '- Includes binaries for `amd64` (`x86_64`) and `arm64` (`aarch64`)\n'
+              printf -- '- Install module: `sudo insmod <arch>/elf_det.ko`\n'
+              printf -- '- Run user tool: `sudo ./<arch>/proc_elf_ctrl`\n'
+              printf -- '- Unload module: `sudo rmmod elf_det`\n'
             } > /tmp/release_notes.md
           fi
           
