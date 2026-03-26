@@ -304,12 +304,51 @@ static void test_format_current_time_layout(void)
 
 static void test_live_header_and_footer_show_timestamps(void)
 {
+	struct live_snapshot snap;
+
 	reset_mocks();
-	print_live_header("123", VIEW_MEMORY);
-	print_live_footer();
+	memset(&snap, 0, sizeof(snap));
+	strcpy(snap.pid, "123");
+	strcpy(snap.captured_at, "26/03/26 12:34:56");
+	snap.view = VIEW_MEMORY;
+	print_live_header(&snap, 0, 1);
+	print_live_footer(snap.captured_at);
 
 	assert(strstr(output_buf, "Snapshot start: "));
 	assert(strstr(output_buf, "Snapshot end:   "));
+}
+
+static void test_snapshot_history_offset_navigation(void)
+{
+	struct live_snapshot history[MAX_SNAPSHOTS];
+	struct live_snapshot snap;
+	struct live_snapshot *picked;
+	int history_count = 0;
+	int history_next = 0;
+
+	memset(history, 0, sizeof(history));
+	memset(&snap, 0, sizeof(snap));
+
+	strcpy(snap.pid, "111");
+	strcpy(snap.captured_at, "26/03/26 12:00:01");
+	snap.view = VIEW_MEMORY;
+	append_snapshot(history, &history_count, &history_next, &snap);
+
+	strcpy(snap.pid, "222");
+	strcpy(snap.captured_at, "26/03/26 12:00:02");
+	append_snapshot(history, &history_count, &history_next, &snap);
+
+	picked =
+		get_snapshot_by_offset(history, history_count, history_next, 0);
+	assert(picked != NULL);
+	assert(strcmp(picked->pid, "222") == 0);
+
+	picked =
+		get_snapshot_by_offset(history, history_count, history_next, 1);
+	assert(picked != NULL);
+	assert(strcmp(picked->pid, "111") == 0);
+
+	clear_snapshot_history(history, &history_count, &history_next);
 }
 
 int main(void)
@@ -323,6 +362,7 @@ int main(void)
 	test_network_view_starts_from_network_section();
 	test_format_current_time_layout();
 	test_live_header_and_footer_show_timestamps();
+	test_snapshot_history_offset_navigation();
 	puts("proc_elf_ctrl tests passed");
 	reset_mocks();
 	return 0;

@@ -180,6 +180,9 @@ Expected behavior:
 - Screen refreshes every 1 second
 - Header shows controls (`1` memory, `2` network, `3` threads, `0` switch PID)
 - Each refresh shows `Snapshot start` and `Snapshot end` timestamps in `YY/MM/DD HH:MM:SS`
+- `Up`/`k` moves to older snapshots, `Down`/`j` moves toward newer snapshots
+- While browsing old snapshots, header indicates history-browsing mode
+- Press `f` to return to live-follow mode
 - Default section is memory (`1`)
 - Pressing `0` prompts for a new PID and continues live refresh for that PID
 

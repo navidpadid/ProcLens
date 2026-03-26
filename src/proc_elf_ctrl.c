@@ -79,11 +79,20 @@ static int set_raw_mode(void)
 
 #define PID_INPUT_MAX 20
 #define PROC_BUF_SIZE 262144
+#define MAX_SNAPSHOTS 120
 
 enum view_mode {
 	VIEW_MEMORY = 1,
 	VIEW_NETWORK = 2,
 	VIEW_THREADS = 3,
+};
+
+struct live_snapshot {
+	char pid[PID_INPUT_MAX];
+	int view;
+	char captured_at[32];
+	char *det_content;
+	char *threads_content;
 };
 
 static void print_cmdline(const char *pid_str)
@@ -395,6 +404,23 @@ static int read_proc_file(const char *name, char *buf, size_t buf_size)
 	return 0;
 }
 
+static int read_proc_file_alloc(const char *name, char **out)
+{
+	char *buf;
+
+	buf = malloc(PROC_BUF_SIZE);
+	if (!buf)
+		return -1;
+
+	if (read_proc_file(name, buf, PROC_BUF_SIZE) < 0) {
+		free(buf);
+		return -1;
+	}
+
+	*out = buf;
+	return 0;
+}
+
 static int read_line(char *buf, size_t buf_size)
 {
 	size_t len;
@@ -442,55 +468,161 @@ static void format_current_time(char *buf, size_t buf_size)
 	strftime(buf, buf_size, "%y/%m/%d %H:%M:%S", &tm_now);
 }
 
-static void print_live_header(const char *pid_str, int view)
+static const char *view_name(int view)
 {
-	char time_buf[32];
+	if (view == VIEW_MEMORY)
+		return "Memory";
 
-	format_current_time(time_buf, sizeof(time_buf));
+	if (view == VIEW_NETWORK)
+		return "Network";
+
+	if (view == VIEW_THREADS)
+		return "Threads";
+
+	return "Unknown";
+}
+
+static void print_live_header(const struct live_snapshot *snap,
+			      int browse_offset,
+			      int history_count)
+{
 	printf("\033[H\033[2J");
 	fflush(stdout);
 	printf("%s%s==========================================================="
 	       "====\n",
 	       color_code(C_GREEN), color_code(C_BOLD));
 	printf("PROC LENS - LIVE VIEW (refresh: 1s)\n");
-	printf("Snapshot start: %s\n", time_buf);
+	printf("Snapshot start: %s\n", snap->captured_at);
 	printf("==============================================================="
 	       "%s\n",
 	       color_code(C_RESET));
 	printf("%sPID:%s %s\n", color_code(C_YELLOW), color_code(C_RESET),
-	       pid_str);
-	printf("%sCurrent section:%s %d\n", color_code(C_YELLOW),
-	       color_code(C_RESET), view);
+	       snap->pid);
+	printf("%sCurrent section:%s %s\n", color_code(C_YELLOW),
+	       color_code(C_RESET), view_name(snap->view));
+	printf("%sSnapshot index:%s %d/%d\n", color_code(C_YELLOW),
+	       color_code(C_RESET), history_count - browse_offset,
+	       history_count);
 	puts("Sections: [1] Memory  [2] Network  [3] Threads");
-	puts("Commands: press 1/2/3 to switch view, 0 to change PID, Ctrl+C to "
-	     "exit");
+	puts("History: [Up/k] older  [Down/j] newer  [f] follow live");
+	puts("Commands: 1/2/3 switch view, 0 change PID, Ctrl+C exit");
+	if (browse_offset > 0)
+		puts("Mode: browsing history (auto-refresh paused)");
+	else
+		puts("Mode: live follow");
 	puts("---------------------------------------------------------------");
 }
 
-static void print_live_footer(void)
+static void print_live_footer(const char *captured_at)
 {
-	char time_buf[32];
-
-	format_current_time(time_buf, sizeof(time_buf));
 	puts("---------------------------------------------------------------");
-	printf("Snapshot end:   %s\n", time_buf);
+	printf("Snapshot end:   %s\n", captured_at);
 	printf("%s============================================================="
 	       "=="
 	       "%s\n",
 	       color_code(C_GREEN), color_code(C_RESET));
 }
 
-static void print_live_view(const char *pid_str, int view)
+static void free_snapshot(struct live_snapshot *snap)
 {
-	char proc_buf[PROC_BUF_SIZE];
+	free(snap->det_content);
+	free(snap->threads_content);
+	snap->det_content = NULL;
+	snap->threads_content = NULL;
+	snap->pid[0] = '\0';
+	snap->captured_at[0] = '\0';
+	snap->view = VIEW_MEMORY;
+}
+
+static void clear_snapshot_history(struct live_snapshot *history,
+				   int *history_count,
+				   int *history_next)
+{
+	int i;
+
+	for (i = 0; i < MAX_SNAPSHOTS; i++)
+		free_snapshot(&history[i]);
+
+	*history_count = 0;
+	*history_next = 0;
+}
+
+static void append_snapshot(struct live_snapshot *history,
+			    int *history_count,
+			    int *history_next,
+			    const struct live_snapshot *snapshot)
+{
+	struct live_snapshot *dst;
+
+	dst = &history[*history_next];
+	free_snapshot(dst);
+	memcpy(dst, snapshot, sizeof(*dst));
+
+	*history_next = (*history_next + 1) % MAX_SNAPSHOTS;
+	if (*history_count < MAX_SNAPSHOTS)
+		(*history_count)++;
+}
+
+static struct live_snapshot *
+get_snapshot_by_offset(struct live_snapshot *history,
+		       int history_count,
+		       int history_next,
+		       int browse_offset)
+{
+	int newest_index;
+	int target_index;
+
+	if (history_count <= 0)
+		return NULL;
+
+	if (browse_offset < 0 || browse_offset >= history_count)
+		return NULL;
+
+	newest_index = (history_next + MAX_SNAPSHOTS - 1) % MAX_SNAPSHOTS;
+	target_index =
+		(newest_index + MAX_SNAPSHOTS - browse_offset) % MAX_SNAPSHOTS;
+	return &history[target_index];
+}
+
+static int capture_live_snapshot(const char *pid_str,
+				 int view,
+				 struct live_snapshot *snapshot)
+{
+	size_t len;
+
+	memset(snapshot, 0, sizeof(*snapshot));
+	snapshot->view = view;
+	format_current_time(snapshot->captured_at,
+			    sizeof(snapshot->captured_at));
+
+	len = strlen(pid_str);
+	if (len >= sizeof(snapshot->pid))
+		len = sizeof(snapshot->pid) - 1;
+	memcpy(snapshot->pid, pid_str, len);
+	snapshot->pid[len] = '\0';
 
 	if (write_pid(pid_str) < 0)
+		return -1;
+
+	if (read_proc_file_alloc("det", &snapshot->det_content) < 0)
+		goto fail;
+
+	if (view == VIEW_THREADS &&
+	    read_proc_file_alloc("threads", &snapshot->threads_content) < 0)
+		goto fail;
+
+	return 0;
+
+fail:
+	free_snapshot(snapshot);
+	return -1;
+}
+
+static void print_live_snapshot(const struct live_snapshot *snapshot)
+{
+	if (!snapshot->det_content)
 		return;
 
-	if (read_proc_file("det", proc_buf, sizeof(proc_buf)) < 0)
-		return;
-
-	/* Always show the process header block for every view */
 	printf("%s%s==========================================================="
 	       "====\n",
 	       color_code(C_CYAN), color_code(C_BOLD));
@@ -498,24 +630,21 @@ static void print_live_view(const char *pid_str, int view)
 	printf("==============================================================="
 	       "%s\n",
 	       color_code(C_RESET));
-	print_cmdline(pid_str);
-	print_det_preamble(proc_buf);
+	print_cmdline(snapshot->pid);
+	print_det_preamble(snapshot->det_content);
 
-	if (view == VIEW_MEMORY) {
-		print_memory_view(proc_buf);
-		print_live_footer();
+	if (snapshot->view == VIEW_MEMORY) {
+		print_memory_view(snapshot->det_content);
+		print_live_footer(snapshot->captured_at);
 		return;
 	}
 
-	if (view == VIEW_NETWORK) {
-		print_network_view(proc_buf);
-		print_live_footer();
+	if (snapshot->view == VIEW_NETWORK) {
+		print_network_view(snapshot->det_content);
+		print_live_footer(snapshot->captured_at);
 		return;
 	}
 
-	/* VIEW_THREADS: reuse buffer to avoid a second large stack frame */
-	if (read_proc_file("threads", proc_buf, sizeof(proc_buf)) < 0)
-		return;
 	printf("%s%s==========================================================="
 	       "====\n",
 	       color_code(C_MAGENTA), color_code(C_BOLD));
@@ -523,8 +652,39 @@ static void print_live_view(const char *pid_str, int view)
 	printf("==============================================================="
 	       "%s\n",
 	       color_code(C_RESET));
-	printf("%s", proc_buf);
-	print_live_footer();
+	if (snapshot->threads_content)
+		printf("%s", snapshot->threads_content);
+	print_live_footer(snapshot->captured_at);
+}
+
+static int read_live_key(void)
+{
+	char ch;
+	char seq0;
+	char seq1;
+	ssize_t n;
+
+	n = read(STDIN_FILENO, &ch, 1);
+	if (n <= 0)
+		return -1;
+
+	if (ch != '\033')
+		return (unsigned char)ch;
+
+	n = read(STDIN_FILENO, &seq0, 1);
+	if (n <= 0)
+		return (unsigned char)ch;
+	n = read(STDIN_FILENO, &seq1, 1);
+	if (n <= 0)
+		return (unsigned char)ch;
+
+	if (seq0 == '[' && seq1 == 'A')
+		return 'k';
+
+	if (seq0 == '[' && seq1 == 'B')
+		return 'j';
+
+	return (unsigned char)ch;
 }
 
 static int prompt_for_pid(char *pid_user, size_t pid_user_size)
@@ -542,10 +702,17 @@ static int prompt_for_pid(char *pid_user, size_t pid_user_size)
 
 static void run_live_mode(void)
 {
+	struct live_snapshot history[MAX_SNAPSHOTS];
+	struct live_snapshot snapshot;
+	struct live_snapshot *current;
 	char pid_user[PID_INPUT_MAX];
-	char ch;
-	ssize_t n;
+	int key;
 	int view = VIEW_MEMORY;
+	int browse_offset = 0;
+	int history_count = 0;
+	int history_next = 0;
+
+	memset(history, 0, sizeof(history));
 
 	if (prompt_for_pid(pid_user, sizeof(pid_user)) < 0) {
 		fprintf(stderr, "invalid input\n");
@@ -558,32 +725,65 @@ static void run_live_mode(void)
 	}
 
 	while (1) {
-		print_live_header(pid_user, view);
-		print_live_view(pid_user, view);
+		if (browse_offset == 0) {
+			if (capture_live_snapshot(pid_user, view, &snapshot) ==
+			    0)
+				append_snapshot(history, &history_count,
+						&history_next, &snapshot);
+		}
+
+		current = get_snapshot_by_offset(history, history_count,
+						 history_next, browse_offset);
+		if (current) {
+			print_live_header(current, browse_offset,
+					  history_count);
+			print_live_snapshot(current);
+		}
 
 		fflush(stdout);
 		if (wait_for_input_or_timeout(1) <= 0)
 			continue;
 
-		n = read(STDIN_FILENO, &ch, 1);
-		if (n <= 0)
+		key = read_live_key();
+		if (key < 0)
 			break;
 
-		if (ch == '1')
+		if (key == '1') {
 			view = VIEW_MEMORY;
-		else if (ch == '2')
+			browse_offset = 0;
+			clear_snapshot_history(history, &history_count,
+					       &history_next);
+		} else if (key == '2') {
 			view = VIEW_NETWORK;
-		else if (ch == '3')
+			browse_offset = 0;
+			clear_snapshot_history(history, &history_count,
+					       &history_next);
+		} else if (key == '3') {
 			view = VIEW_THREADS;
-		else if (ch == '0') {
+			browse_offset = 0;
+			clear_snapshot_history(history, &history_count,
+					       &history_next);
+		} else if (key == 'k') {
+			if (browse_offset + 1 < history_count)
+				browse_offset++;
+		} else if (key == 'j') {
+			if (browse_offset > 0)
+				browse_offset--;
+		} else if (key == 'f') {
+			browse_offset = 0;
+		} else if (key == '0') {
 			/* temporarily restore cooked mode for PID entry */
 			tcsetattr(STDIN_FILENO, TCSAFLUSH, &g_saved_termios);
 			if (prompt_for_pid(pid_user, sizeof(pid_user)) < 0)
 				fprintf(stderr, "invalid PID\n");
 			apply_raw_mode();
+			browse_offset = 0;
+			clear_snapshot_history(history, &history_count,
+					       &history_next);
 		}
 	}
 
+	clear_snapshot_history(history, &history_count, &history_next);
 	restore_terminal();
 }
 

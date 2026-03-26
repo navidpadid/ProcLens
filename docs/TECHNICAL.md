@@ -120,12 +120,16 @@ Simple C program that supports two modes:
 ```
 Prompts for a PID, then enters a 1-second refresh loop with section filtering.
 Each refresh prints start/end timestamps in `YY/MM/DD HH:MM:SS`.
+Snapshots are kept in an in-memory ring buffer (120 entries) for history browsing.
 
 Controls shown in the header:
 - `1` - Memory section (default)
 - `2` - Network section
 - `3` - Thread section
 - `0` - Prompt for a new PID (switch process)
+- `Up` or `k` - Older snapshot
+- `Down` or `j` - Newer snapshot
+- `f` - Return to live-follow mode
 
 Keys `1`, `2`, `3` switch sections instantly (no Enter required). Pressing `0` temporarily
 restores cooked terminal mode so the user can type a PID, then returns to raw mode.

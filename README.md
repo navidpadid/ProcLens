@@ -194,6 +194,8 @@ Running without arguments starts a live dashboard:
 - Defaults to section `1` (memory-related output)
 - Shows quick controls at the top: `1` memory, `2` network, `3` threads
 - Prints timestamps at top and bottom in `YY/MM/DD HH:MM:SS`
+- Keeps a snapshot history (up to 120 entries) for in-app navigation
+- Press Up/`k` for older snapshots, Down/`j` for newer snapshots, `f` to resume live follow
 - Press `0` to switch to another process ID (no Enter needed)
 
 > **Caveat for WSL/macOS + Docker dev containers:**
