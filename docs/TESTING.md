@@ -179,6 +179,7 @@ Verify no-argument live mode behavior:
 Expected behavior:
 - Screen refreshes every 1 second
 - Header shows controls (`1` memory, `2` network, `3` threads, `0` switch PID)
+- Each refresh shows `Snapshot start` and `Snapshot end` timestamps in `YY/MM/DD HH:MM:SS`
 - Default section is memory (`1`)
 - Pressing `0` prompts for a new PID and continues live refresh for that PID
 

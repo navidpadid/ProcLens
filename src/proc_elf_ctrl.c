@@ -6,6 +6,7 @@
 #include <signal.h>
 #include <sys/select.h>
 #include <termios.h>
+#include <time.h>
 #include "proc_elf_ctrl.h"
 
 #define C_RESET	  "\033[0m"
@@ -427,14 +428,32 @@ static int wait_for_input_or_timeout(int timeout_sec)
 	return ret;
 }
 
+static void format_current_time(char *buf, size_t buf_size)
+{
+	time_t now;
+	struct tm tm_now;
+
+	now = time(NULL);
+	if (localtime_r(&now, &tm_now) == NULL) {
+		snprintf(buf, buf_size, "00/00/00 00:00:00");
+		return;
+	}
+
+	strftime(buf, buf_size, "%y/%m/%d %H:%M:%S", &tm_now);
+}
+
 static void print_live_header(const char *pid_str, int view)
 {
+	char time_buf[32];
+
+	format_current_time(time_buf, sizeof(time_buf));
 	printf("\033[H\033[2J");
 	fflush(stdout);
 	printf("%s%s==========================================================="
 	       "====\n",
 	       color_code(C_GREEN), color_code(C_BOLD));
 	printf("PROC LENS - LIVE VIEW (refresh: 1s)\n");
+	printf("Snapshot start: %s\n", time_buf);
 	printf("==============================================================="
 	       "%s\n",
 	       color_code(C_RESET));
@@ -446,6 +465,19 @@ static void print_live_header(const char *pid_str, int view)
 	puts("Commands: press 1/2/3 to switch view, 0 to change PID, Ctrl+C to "
 	     "exit");
 	puts("---------------------------------------------------------------");
+}
+
+static void print_live_footer(void)
+{
+	char time_buf[32];
+
+	format_current_time(time_buf, sizeof(time_buf));
+	puts("---------------------------------------------------------------");
+	printf("Snapshot end:   %s\n", time_buf);
+	printf("%s============================================================="
+	       "=="
+	       "%s\n",
+	       color_code(C_GREEN), color_code(C_RESET));
 }
 
 static void print_live_view(const char *pid_str, int view)
@@ -471,11 +503,13 @@ static void print_live_view(const char *pid_str, int view)
 
 	if (view == VIEW_MEMORY) {
 		print_memory_view(proc_buf);
+		print_live_footer();
 		return;
 	}
 
 	if (view == VIEW_NETWORK) {
 		print_network_view(proc_buf);
+		print_live_footer();
 		return;
 	}
 
@@ -490,6 +524,7 @@ static void print_live_view(const char *pid_str, int view)
 	       "%s\n",
 	       color_code(C_RESET));
 	printf("%s", proc_buf);
+	print_live_footer();
 }
 
 static int prompt_for_pid(char *pid_user, size_t pid_user_size)

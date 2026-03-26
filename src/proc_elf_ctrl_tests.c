@@ -2,6 +2,7 @@
 #define _GNU_SOURCE
 #include "proc_elf_ctrl.h"
 #include <assert.h>
+#include <ctype.h>
 #include <stdarg.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -275,6 +276,42 @@ static void test_network_view_starts_from_network_section(void)
 	assert(strstr(output_buf, "Open Sockets:"));
 }
 
+static void test_format_current_time_layout(void)
+{
+	char buf[32];
+
+	format_current_time(buf, sizeof(buf));
+
+	assert(strlen(buf) == 17);
+	assert(isdigit((unsigned char)buf[0]));
+	assert(isdigit((unsigned char)buf[1]));
+	assert(buf[2] == '/');
+	assert(isdigit((unsigned char)buf[3]));
+	assert(isdigit((unsigned char)buf[4]));
+	assert(buf[5] == '/');
+	assert(isdigit((unsigned char)buf[6]));
+	assert(isdigit((unsigned char)buf[7]));
+	assert(buf[8] == ' ');
+	assert(isdigit((unsigned char)buf[9]));
+	assert(isdigit((unsigned char)buf[10]));
+	assert(buf[11] == ':');
+	assert(isdigit((unsigned char)buf[12]));
+	assert(isdigit((unsigned char)buf[13]));
+	assert(buf[14] == ':');
+	assert(isdigit((unsigned char)buf[15]));
+	assert(isdigit((unsigned char)buf[16]));
+}
+
+static void test_live_header_and_footer_show_timestamps(void)
+{
+	reset_mocks();
+	print_live_header("123", VIEW_MEMORY);
+	print_live_footer();
+
+	assert(strstr(output_buf, "Snapshot start: "));
+	assert(strstr(output_buf, "Snapshot end:   "));
+}
+
 int main(void)
 {
 	test_build_proc_path_helper();
@@ -284,6 +321,8 @@ int main(void)
 	test_det_preamble_stops_before_sections();
 	test_memory_view_filters_network_section();
 	test_network_view_starts_from_network_section();
+	test_format_current_time_layout();
+	test_live_header_and_footer_show_timestamps();
 	puts("proc_elf_ctrl tests passed");
 	reset_mocks();
 	return 0;

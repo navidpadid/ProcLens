@@ -119,6 +119,7 @@ Simple C program that supports two modes:
 ./build/proc_elf_ctrl
 ```
 Prompts for a PID, then enters a 1-second refresh loop with section filtering.
+Each refresh prints start/end timestamps in `YY/MM/DD HH:MM:SS`.
 
 Controls shown in the header:
 - `1` - Memory section (default)
