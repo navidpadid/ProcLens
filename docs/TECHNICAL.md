@@ -114,17 +114,26 @@ Shows both `start_stack` (top/base) and `stack_end` (current lower boundary). Th
 
 Simple C program that supports two modes:
 
-### Interactive Mode
+### Live Mode (No Arguments)
 ```bash
 ./build/proc_elf_ctrl
 ```
-Prompts for a PID, writes to `/proc/elf_det/pid`, then reads `/proc/elf_det/det` and `/proc/elf_det/threads` and prints output.
+Prompts for a PID, then enters a 1-second refresh loop with section filtering.
+
+Controls shown in the header:
+- `1` - Memory section (default)
+- `2` - Network section
+- `3` - Thread section
+- `0` - Prompt for a new PID (switch process)
+
+Keys `1`, `2`, `3` switch sections instantly (no Enter required). Pressing `0` temporarily
+restores cooked terminal mode so the user can type a PID, then returns to raw mode.
 
 ### Argument Mode
 ```bash
 ./build/proc_elf_ctrl <PID>
 ```
-Non-interactive mode - write PID and print both process and thread information.
+Non-interactive mode - write PID once and print both process and thread information.
 
 ### Environment Override
 

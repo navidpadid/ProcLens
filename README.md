@@ -33,6 +33,7 @@
 - **CPU Usage Tracking**: Real-time CPU percentage calculation per process and thread
 - **ELF Section Analysis**: Binary base address and section boundaries
 - **Proc Interface**: Easy access through `/proc/elf_det/`
+- **Live Dashboard Mode**: No-arg mode refreshes every 1s with switchable sections
 - **Comprehensive Testing**: Unit tests and QEMU-based E2E testing
 - **Code Quality**: Pre-configured static analysis (sparse, cppcheck, checkpatch)
 
@@ -184,6 +185,15 @@ Total threads: 15
    ```bash
    ./build/proc_elf_ctrl
    ```
+
+### Live Mode (No Parameters)
+
+Running without arguments starts a live dashboard:
+
+- Auto-refreshes every 1 second
+- Defaults to section `1` (memory-related output)
+- Shows quick controls at the top: `1` memory, `2` network, `3` threads
+- Press `0` to switch to another process ID (no Enter needed)
 
 > **Caveat for WSL/macOS + Docker dev containers:**
 > If your container kernel does not expose matching host kernel sources/headers,

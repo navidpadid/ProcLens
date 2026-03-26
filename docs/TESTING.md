@@ -10,7 +10,8 @@ make unit
 
 This builds and runs:
 - `src/elf_det_tests.c` – verifies `compute_usage_permyriad()`, `compute_bss_range()`, `compute_heap_range()`, `is_address_in_range()`, `get_thread_state_char()`, `build_cpu_affinity_string()`, and memory-pressure helpers
-- `src/proc_elf_ctrl_tests.c` – verifies `build_proc_path()` with and without `ELF_DET_PROC_DIR`
+- `src/proc_elf_ctrl_tests.c` – verifies `build_proc_path()`, PID argument bounds,
+  process-info print path, cmdline formatting, and section filtering for memory/network live views
 
 Artifacts are created under `build/`.
 
@@ -166,6 +167,34 @@ The thread output should include:
 - Total thread count
 
 Multi-threaded processes (browsers, IDEs, servers) will show multiple threads.
+
+### Testing Live Mode Controls
+
+Verify no-argument live mode behavior:
+
+```bash
+./build/proc_elf_ctrl
+```
+
+Expected behavior:
+- Screen refreshes every 1 second
+- Header shows controls (`1` memory, `2` network, `3` threads, `0` switch PID)
+- Default section is memory (`1`)
+- Pressing `0` prompts for a new PID and continues live refresh for that PID
+
+Note: Live mode requires a real TTY for raw terminal input (`tcgetattr`/`tcsetattr`).
+The single-keypress navigation cannot be exercised by unit tests; use manual testing
+or the QEMU VM to verify it end-to-end.
+
+Quick deterministic check with a fake proc directory:
+
+```bash
+mkdir -p /tmp/fake_proc
+: > /tmp/fake_proc/pid
+printf 'Memory Pressure Statistics:\n[network]\nsockets_total: 2\n' > /tmp/fake_proc/det
+printf 'tid header\nthread line\n' > /tmp/fake_proc/threads
+ELF_DET_PROC_DIR=/tmp/fake_proc ./build/proc_elf_ctrl
+```
 ### Testing Socket Information
 
 To verify socket functionality, test with processes that have open sockets:

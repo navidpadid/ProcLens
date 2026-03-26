@@ -23,10 +23,6 @@ static int fail_det_open;
 static int fail_threads_open;
 static int fail_cmdline_open;
 
-static const char *scan_inputs[8];
-static int scan_input_count;
-static int scan_input_index;
-
 static void append_output(const char *fmt, ...)
 {
 	va_list args;
@@ -68,29 +64,9 @@ static void reset_mocks(void)
 	fail_threads_open = 0;
 	fail_cmdline_open = 0;
 
-	scan_input_count = 0;
-	scan_input_index = 0;
-
 	memset(cmdline_content, 0, sizeof(cmdline_content));
 	cmdline_len = 0;
 	setenv("ELF_DET_PROC_DIR", "/fake_proc", 1);
-}
-
-static int count_substr(const char *haystack, const char *needle)
-{
-	int count = 0;
-	const char *p = haystack;
-	size_t nlen = strlen(needle);
-
-	while (p && *p) {
-		p = strstr(p, needle);
-		if (!p)
-			break;
-		count++;
-		p += nlen;
-	}
-
-	return count;
 }
 
 static FILE *mock_fopen(const char *path, const char *mode)
@@ -153,33 +129,13 @@ static void mock_perror(const char *s)
 	append_output("%s\n", s);
 }
 
-static int mock_scanf(const char *fmt, ...)
-{
-	char *out;
-	va_list args;
-
-	(void)fmt;
-	if (scan_input_index >= scan_input_count)
-		return EOF;
-
-	va_start(args, fmt);
-	out = va_arg(args, char *);
-	va_end(args);
-
-	snprintf(out, 20, "%s", scan_inputs[scan_input_index]);
-	scan_input_index++;
-	return 1;
-}
-
 #define fopen  mock_fopen
 #define printf mock_printf
 #define puts   mock_puts
 #define perror mock_perror
-#define scanf  mock_scanf
 #define main   proc_elf_ctrl_entry
 #include "proc_elf_ctrl.c"
 #undef main
-#undef scanf
 #undef perror
 #undef puts
 #undef printf
@@ -262,21 +218,61 @@ static void test_main_argument_pid_is_bounded(void)
 	assert(strncmp(pid_stream_buf, "1234567890123456789", 19) == 0);
 }
 
-static void test_main_interactive_repeats_until_input_fails(void)
+static void test_det_preamble_stops_before_sections(void)
 {
-	char *argv[] = {"prog"};
+	const char *det = "Process ID:     123\n"
+			  "Name:            foo\n"
+			  "CPU Usage:       1.00%\n"
+			  "Memory Pressure Statistics:\n"
+			  "  RSS (Resident): 10 KB\n"
+			  "[network]\n"
+			  "sockets_total: 1\n";
 
 	reset_mocks();
-	scan_inputs[0] = "12345";
-	scan_inputs[1] = "1";
-	scan_input_count = 2;
-	cmdline_len = 0;
+	print_det_preamble(det);
 
-	proc_elf_ctrl_entry(1, argv);
+	assert(strstr(output_buf, "Process ID:     123"));
+	assert(strstr(output_buf, "Name:            foo"));
+	assert(strstr(output_buf, "CPU Usage:       1.00%"));
+	assert(!strstr(output_buf, "Memory Pressure Statistics:"));
+	assert(!strstr(output_buf, "[network]"));
+}
 
-	assert(pid_stream_buf != NULL);
-	assert(strcmp(pid_stream_buf, "1") == 0);
-	assert(count_substr(output_buf, "PROCESS INFORMATION") == 2);
+static void test_memory_view_filters_network_section(void)
+{
+	const char *det = "Memory Pressure Statistics:\n"
+			  "  RSS (Resident): 10 KB\n"
+			  "Memory Layout:\n"
+			  "  Code Section: 0x1 - 0x2\n"
+			  "Memory Layout Visualization:\n"
+			  "  [== ]\n"
+			  "[network]\n"
+			  "sockets_total: 2\n";
+
+	reset_mocks();
+	print_memory_view(det);
+
+	assert(strstr(output_buf, "Memory Pressure Statistics:"));
+	assert(strstr(output_buf, "Memory Layout Visualization:"));
+	assert(!strstr(output_buf, "[network]"));
+	assert(!strstr(output_buf, "sockets_total"));
+}
+
+static void test_network_view_starts_from_network_section(void)
+{
+	const char *det = "Memory Pressure Statistics:\n"
+			  "  RSS (Resident): 10 KB\n"
+			  "[network]\n"
+			  "sockets_total: 2\n"
+			  "Open Sockets:\n";
+
+	reset_mocks();
+	print_network_view(det);
+
+	assert(!strstr(output_buf, "Memory Pressure Statistics:"));
+	assert(strstr(output_buf, "[network]"));
+	assert(strstr(output_buf, "sockets_total: 2"));
+	assert(strstr(output_buf, "Open Sockets:"));
 }
 
 int main(void)
@@ -285,7 +281,9 @@ int main(void)
 	test_print_cmdline_replaces_nul_with_space();
 	test_print_process_info_happy_path();
 	test_main_argument_pid_is_bounded();
-	test_main_interactive_repeats_until_input_fails();
+	test_det_preamble_stops_before_sections();
+	test_memory_view_filters_network_section();
+	test_network_view_starts_from_network_section();
 	puts("proc_elf_ctrl tests passed");
 	reset_mocks();
 	return 0;
