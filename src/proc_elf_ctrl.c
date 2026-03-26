@@ -8,8 +8,30 @@
 #include <termios.h>
 #include "proc_elf_ctrl.h"
 
+#define C_RESET	  "\033[0m"
+#define C_BOLD	  "\033[1m"
+#define C_CYAN	  "\033[36m"
+#define C_GREEN	  "\033[32m"
+#define C_YELLOW  "\033[33m"
+#define C_MAGENTA "\033[35m"
+#define C_BLUE	  "\033[34m"
+
 static volatile sig_atomic_t g_restore_terminal;
 static struct termios g_saved_termios;
+static int g_use_color;
+
+static const char *color_code(const char *code)
+{
+	return g_use_color ? code : "";
+}
+
+static void init_color_output(void)
+{
+	const char *no_color = getenv("NO_COLOR");
+
+	g_use_color =
+		isatty(STDOUT_FILENO) && (!no_color || no_color[0] == '\0');
+}
 
 static void restore_terminal(void)
 {
@@ -87,7 +109,8 @@ static void print_cmdline(const char *pid_str)
 			cmdline[i] = ' ';
 	}
 
-	printf("Command line:   %s\n", cmdline);
+	printf("%sCommand line:%s   %s\n", color_code(C_YELLOW),
+	       color_code(C_RESET), cmdline);
 }
 
 static void print_process_info(const char *pid_str)
@@ -112,9 +135,13 @@ static void print_process_info(const char *pid_str)
 
 	/* Read and display process info */
 	printf("\n");
-	puts("===============================================================");
-	puts("PROCESS INFORMATION");
-	puts("===============================================================");
+	printf("%s%s==========================================================="
+	       "====\n",
+	       color_code(C_CYAN), color_code(C_BOLD));
+	printf("PROCESS INFORMATION\n");
+	printf("==============================================================="
+	       "%s\n",
+	       color_code(C_RESET));
 	print_cmdline(pid_str);
 	det_path = build_proc_path("det");
 	fp = fopen(det_path, "r");
@@ -130,9 +157,13 @@ static void print_process_info(const char *pid_str)
 
 	/* Read and display thread info */
 	printf("\n");
-	puts("===============================================================");
-	puts("THREAD INFORMATION");
-	puts("===============================================================");
+	printf("%s%s==========================================================="
+	       "====\n",
+	       color_code(C_MAGENTA), color_code(C_BOLD));
+	printf("THREAD INFORMATION\n");
+	printf("==============================================================="
+	       "%s\n",
+	       color_code(C_RESET));
 	threads_path = build_proc_path("threads");
 	fp = fopen(threads_path, "r");
 	if (!fp) {
@@ -239,8 +270,39 @@ static void print_memory_view(const char *det_content)
 		if (is_memory_section_start(line))
 			in_memory_section = 1;
 
-		if (in_memory_section)
+		if (!in_memory_section)
+			continue;
+
+		if (is_memory_section_start(line)) {
+			printf("%s%s%s%s", color_code(C_BLUE),
+			       color_code(C_BOLD), line, color_code(C_RESET));
+		} else if (strncmp(line,
+				   "-------------------------------------------"
+				   "-----",
+				   48) == 0) {
+			printf("%s%s%s", color_code(C_BLUE), line,
+			       color_code(C_RESET));
+		} else if (strncmp(line, "Low:", 4) == 0 ||
+			   strncmp(line, "High:", 5) == 0) {
+			printf("%s%s%s", color_code(C_CYAN), line,
+			       color_code(C_RESET));
+		} else if (strncmp(line, "  RSS", 5) == 0 ||
+			   strncmp(line, "  VSZ", 5) == 0 ||
+			   strncmp(line, "  Swap", 6) == 0 ||
+			   strncmp(line, "  Page Faults", 13) == 0 ||
+			   strncmp(line, "  OOM Score", 11) == 0) {
+			printf("%s%s%s", color_code(C_YELLOW), line,
+			       color_code(C_RESET));
+		} else if (strncmp(line, "CODE", 4) == 0 ||
+			   strncmp(line, "DATA", 4) == 0 ||
+			   strncmp(line, "BSS", 3) == 0 ||
+			   strncmp(line, "HEAP", 4) == 0 ||
+			   strncmp(line, "STACK", 5) == 0) {
+			printf("%s%s%s", color_code(C_GREEN), line,
+			       color_code(C_RESET));
+		} else {
 			printf("%s", line);
+		}
 	}
 }
 
@@ -269,8 +331,40 @@ static void print_network_view(const char *det_content)
 		if (!in_network_section && strncmp(line, "[network]", 9) == 0)
 			in_network_section = 1;
 
-		if (in_network_section)
+		if (!in_network_section)
+			continue;
+
+		if (strncmp(line, "[network]", 9) == 0 ||
+		    strncmp(line, "Open Sockets:", 13) == 0 ||
+		    strncmp(line, "top_talkers:", 12) == 0) {
+			printf("%s%s%s%s", color_code(C_GREEN),
+			       color_code(C_BOLD), line, color_code(C_RESET));
+		} else if (strncmp(line, "sockets_total:", 14) == 0 ||
+			   strncmp(line, "rx_packets:", 11) == 0 ||
+			   strncmp(line, "tx_packets:", 11) == 0 ||
+			   strncmp(line, "rx_bytes:", 9) == 0 ||
+			   strncmp(line, "tx_bytes:", 9) == 0 ||
+			   strncmp(line, "tcp_retransmits:", 16) == 0 ||
+			   strncmp(line, "drops:", 6) == 0 ||
+			   strncmp(line, "net_devices:", 12) == 0) {
+			printf("%s%s%s", color_code(C_YELLOW), line,
+			       color_code(C_RESET));
+		} else if (strncmp(line, " [FD", 4) == 0 ||
+			   strncmp(line, "  #", 3) == 0) {
+			printf("%s%s%s", color_code(C_MAGENTA), line,
+			       color_code(C_RESET));
+		} else if (strncmp(line, "   Traffic:", 11) == 0 ||
+			   strncmp(line, "         Local:", 15) == 0 ||
+			   strncmp(line, "         Remote:", 16) == 0) {
+			printf("%s%s%s", color_code(C_CYAN), line,
+			       color_code(C_RESET));
+		} else if (strncmp(line, "--------------------------------",
+				   32) == 0) {
+			printf("%s%s%s", color_code(C_BLUE), line,
+			       color_code(C_RESET));
+		} else {
 			printf("%s", line);
+		}
 	}
 }
 
@@ -337,11 +431,17 @@ static void print_live_header(const char *pid_str, int view)
 {
 	printf("\033[H\033[2J");
 	fflush(stdout);
-	puts("===============================================================");
-	puts("PROC LENS - LIVE VIEW (refresh: 1s)");
-	puts("===============================================================");
-	printf("PID: %s\n", pid_str);
-	printf("Current section: %d\n", view);
+	printf("%s%s==========================================================="
+	       "====\n",
+	       color_code(C_GREEN), color_code(C_BOLD));
+	printf("PROC LENS - LIVE VIEW (refresh: 1s)\n");
+	printf("==============================================================="
+	       "%s\n",
+	       color_code(C_RESET));
+	printf("%sPID:%s %s\n", color_code(C_YELLOW), color_code(C_RESET),
+	       pid_str);
+	printf("%sCurrent section:%s %d\n", color_code(C_YELLOW),
+	       color_code(C_RESET), view);
 	puts("Sections: [1] Memory  [2] Network  [3] Threads");
 	puts("Commands: press 1/2/3 to switch view, 0 to change PID, Ctrl+C to "
 	     "exit");
@@ -359,9 +459,13 @@ static void print_live_view(const char *pid_str, int view)
 		return;
 
 	/* Always show the process header block for every view */
-	puts("===============================================================");
-	puts("PROCESS INFORMATION");
-	puts("===============================================================");
+	printf("%s%s==========================================================="
+	       "====\n",
+	       color_code(C_CYAN), color_code(C_BOLD));
+	printf("PROCESS INFORMATION\n");
+	printf("==============================================================="
+	       "%s\n",
+	       color_code(C_RESET));
 	print_cmdline(pid_str);
 	print_det_preamble(proc_buf);
 
@@ -378,9 +482,13 @@ static void print_live_view(const char *pid_str, int view)
 	/* VIEW_THREADS: reuse buffer to avoid a second large stack frame */
 	if (read_proc_file("threads", proc_buf, sizeof(proc_buf)) < 0)
 		return;
-	puts("===============================================================");
-	puts("THREAD INFORMATION");
-	puts("===============================================================");
+	printf("%s%s==========================================================="
+	       "====\n",
+	       color_code(C_MAGENTA), color_code(C_BOLD));
+	printf("THREAD INFORMATION\n");
+	printf("==============================================================="
+	       "%s\n",
+	       color_code(C_RESET));
 	printf("%s", proc_buf);
 }
 
@@ -446,6 +554,8 @@ static void run_live_mode(void)
 
 int main(int argc, char **argv)
 {
+	init_color_output();
+
 	if (argc > 1) {
 		char pid_user[20];
 		size_t len;
