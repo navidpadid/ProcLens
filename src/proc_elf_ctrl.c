@@ -77,9 +77,10 @@ static int set_raw_mode(void)
 	return 0;
 }
 
-#define PID_INPUT_MAX 20
-#define PROC_BUF_SIZE 262144
-#define MAX_SNAPSHOTS 120
+#define PID_INPUT_MAX	20
+#define PROC_BUF_SIZE	262144
+#define MAX_SNAPSHOTS	120
+#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 
 enum view_mode {
 	VIEW_MEMORY = 1,
@@ -94,6 +95,102 @@ struct live_snapshot {
 	char *det_content;
 	char *threads_content;
 };
+
+static void print_logo_text(void)
+{
+	printf("%s%s\n", color_code(C_CYAN), color_code(C_BOLD));
+	/* clang-format off */
+	puts(" /$$$$$$$                               /$$                                    ");
+	puts("| $$__  $$                             | $$                                    ");
+	puts("| $$  \\ $$ /$$$$$$   /$$$$$$   /$$$$$$$| $$        /$$$$$$  /$$$$$$$   /$$$$$$$");
+	puts("| $$$$$$$//$$__  $$ /$$__  $$ /$$_____/| $$       /$$__  $$| $$__  $$ /$$_____/");
+	puts("| $$____/| $$  \\__/| $$  \\ $$| $$      | $$      | $$$$$$$$| $$  \\ $$|  $$$$$$ ");
+	puts("| $$     | $$      | $$  | $$| $$      | $$      | $$_____/| $$  | $$ \\____  $$");
+	puts("| $$     | $$      |  $$$$$$/|  $$$$$$$| $$$$$$$$|  $$$$$$$| $$  | $$ /$$$$$$$/");
+	puts("|__/     |__/       \\______/  \\_______/|________/ \\_______/|__/  |__/|_______/ ");
+	puts("                                                                               ");
+	puts("                                                                               ");
+	puts("                                                                               ");
+	/* clang-format on */
+	printf("%s\n", color_code(C_RESET));
+}
+
+static int is_module_loaded(const char *module_name)
+{
+	FILE *fp;
+	char line[256];
+	size_t module_name_len;
+
+	fp = fopen("/proc/modules", "r");
+	if (!fp)
+		return -1;
+
+	module_name_len = strlen(module_name);
+	while (fgets(line, sizeof(line), fp)) {
+		if (strncmp(line, module_name, module_name_len) == 0 &&
+		    line[module_name_len] == ' ') {
+			fclose(fp);
+			return 1;
+		}
+	}
+
+	fclose(fp);
+	return 0;
+}
+
+static int ensure_module_loaded(void)
+{
+	int loaded;
+
+	loaded = is_module_loaded("elf_det");
+	if (loaded < 0) {
+		perror("open /proc/modules");
+		return -1;
+	}
+
+	if (loaded == 0) {
+		fprintf(stderr,
+			"%serror:%s kernel module 'elf_det' is not loaded\n",
+			color_code(C_YELLOW), color_code(C_RESET));
+		fprintf(stderr, "hint: run 'sudo insmod ./build/elf_det.ko' or "
+				"'sudo make install'\n");
+		return -1;
+	}
+
+	return 0;
+}
+
+static int ensure_proc_files_present(void)
+{
+	static const char *const required_files[] = {"pid", "det", "threads"};
+	char *path;
+	size_t i;
+
+	for (i = 0; i < ARRAY_SIZE(required_files); i++) {
+		path = build_proc_path(required_files[i]);
+		if (!path) {
+			fprintf(stderr, "failed to allocate path for proc "
+					"interface check\n");
+			return -1;
+		}
+
+		if (access(path, F_OK) != 0) {
+			fprintf(stderr,
+				"%serror:%s required proc file is missing: "
+				"%s\n",
+				color_code(C_YELLOW), color_code(C_RESET),
+				path);
+			fprintf(stderr, "hint: confirm /proc/elf_det is "
+					"mounted and initialized\n");
+			free(path);
+			return -1;
+		}
+
+		free(path);
+	}
+
+	return 0;
+}
 
 static void print_cmdline(const char *pid_str)
 {
@@ -460,7 +557,7 @@ static void format_current_time(char *buf, size_t buf_size)
 	struct tm tm_now;
 
 	now = time(NULL);
-	if (localtime_r(&now, &tm_now) == NULL) {
+	if (!localtime_r(&now, &tm_now)) {
 		snprintf(buf, buf_size, "00/00/00 00:00:00");
 		return;
 	}
@@ -790,6 +887,11 @@ static void run_live_mode(void)
 int main(int argc, char **argv)
 {
 	init_color_output();
+	print_logo_text();
+	if (ensure_module_loaded() < 0)
+		return -1;
+	if (ensure_proc_files_present() < 0)
+		return -1;
 
 	if (argc > 1) {
 		char pid_user[20];
