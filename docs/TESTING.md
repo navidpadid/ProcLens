@@ -11,7 +11,7 @@ make unit
 This builds and runs:
 - `src/elf_det_tests.c` – verifies `compute_usage_permyriad()`, `compute_bss_range()`, `compute_heap_range()`, `is_address_in_range()`, `get_thread_state_char()`, `build_cpu_affinity_string()`, and memory-pressure helpers
 - `src/proc_elf_ctrl_tests.c` – verifies `build_proc_path()`, PID argument bounds,
-  process-info print path, cmdline formatting, and section filtering for memory/network live views
+    process-info print path, cmdline formatting, and section filtering for memory/network/I/O live views
 
 Artifacts are created under `build/`.
 
@@ -181,12 +181,13 @@ Expected behavior:
 - If `elf_det` is not loaded, program exits immediately with status `-1`
 - If required proc files are missing (`pid`, `det`, `threads`), program exits immediately with status `-1`
 - Screen refreshes every 1 second
-- Header shows controls (`1` memory, `2` network, `3` threads, `0` switch PID)
+- Header shows controls (`1` memory, `2` network, `3` threads, `4` I/O, `0` switch PID)
 - Each refresh shows `Snapshot start` and `Snapshot end` timestamps in `YY/MM/DD HH:MM:SS`
 - `Up`/`k` moves to older snapshots, `Down`/`j` moves toward newer snapshots
 - While browsing old snapshots, header indicates history-browsing mode
 - Press `f` to return to live-follow mode
 - Default section is memory (`1`)
+- Press `4` to view only I/O statistics (`[io]` section)
 - Pressing `0` prompts for a new PID and continues live refresh for that PID
 
 Note: Live mode requires a real TTY for raw terminal input (`tcgetattr`/`tcsetattr`).
@@ -255,6 +256,24 @@ Top talkers behavior:
 In the open sockets section:
 - TCP sockets include lifetime packet/byte counters.
 - UDP sockets include queue-based packet/byte counters (current queued data).
+
+### Testing I/O Stats
+
+The process output should include an I/O section:
+
+```bash
+./build/proc_elf_ctrl $$
+```
+
+Look for:
+- `[io]`
+- `rchar:`, `wchar:`, `syscr:`, `syscw:`
+- `read_bytes:`, `write_bytes:`, `cancelled_write_bytes:`
+- `avg_read_bytes_per_syscall:`, `avg_write_bytes_per_syscall:`
+- `io_intensity:`
+
+If the running kernel was built without task I/O accounting (`CONFIG_TASK_XACCT`),
+the section will show `status: unavailable` instead of per-field counters.
 
 ## Test Coverage
 

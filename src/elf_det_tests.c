@@ -404,6 +404,25 @@ int main(void)
 		is_high_memory_pressure(1024 * 1024, 200 * 1024); /* ~19% */
 	assert(high_pressure == 1);
 
+	/* I/O Statistics helper tests */
+	u64 avg_bytes;
+	u64 io_intensity;
+
+	avg_bytes = calculate_avg_bytes_per_syscall(4096, 4);
+	assert(avg_bytes == 1024);
+
+	avg_bytes = calculate_avg_bytes_per_syscall(4097, 4);
+	assert(avg_bytes == 1024);
+
+	avg_bytes = calculate_avg_bytes_per_syscall(12345, 0);
+	assert(avg_bytes == 0);
+
+	io_intensity = calculate_io_intensity(1024, 2048);
+	assert(io_intensity == 3072);
+
+	io_intensity = calculate_io_intensity(0, 0);
+	assert(io_intensity == 0);
+
 	/* socket_family_to_string tests */
 	const char *family_str;
 

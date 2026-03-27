@@ -86,6 +86,7 @@ enum view_mode {
 	VIEW_MEMORY = 1,
 	VIEW_NETWORK = 2,
 	VIEW_THREADS = 3,
+	VIEW_IO = 4,
 };
 
 struct live_snapshot {
@@ -163,10 +164,11 @@ static int ensure_module_loaded(void)
 static int ensure_proc_files_present(void)
 {
 	static const char *const required_files[] = {"pid", "det", "threads"};
-	char *path;
 	size_t i;
 
 	for (i = 0; i < ARRAY_SIZE(required_files); i++) {
+		char *path;
+
 		path = build_proc_path(required_files[i]);
 		if (!path) {
 			fprintf(stderr, "failed to allocate path for proc "
@@ -342,7 +344,8 @@ static void print_det_preamble(const char *det_content)
 		line[line_len] = '\0';
 
 		if (is_memory_section_start(line) ||
-		    strncmp(line, "[network]", 9) == 0)
+		    strncmp(line, "[network]", 9) == 0 ||
+		    strncmp(line, "[io]", 4) == 0)
 			break;
 
 		printf("%s", line);
@@ -371,7 +374,8 @@ static void print_memory_view(const char *det_content)
 		}
 		line[line_len] = '\0';
 
-		if (strncmp(line, "[network]", 9) == 0)
+		if (strncmp(line, "[network]", 9) == 0 ||
+		    strncmp(line, "[io]", 4) == 0)
 			break;
 
 		if (is_memory_section_start(line))
@@ -435,6 +439,9 @@ static void print_network_view(const char *det_content)
 		}
 		line[line_len] = '\0';
 
+		if (strncmp(line, "[io]", 4) == 0)
+			break;
+
 		if (!in_network_section && strncmp(line, "[network]", 9) == 0)
 			in_network_section = 1;
 
@@ -468,6 +475,60 @@ static void print_network_view(const char *det_content)
 		} else if (strncmp(line, "--------------------------------",
 				   32) == 0) {
 			printf("%s%s%s", color_code(C_BLUE), line,
+			       color_code(C_RESET));
+		} else {
+			printf("%s", line);
+		}
+	}
+}
+
+static void print_io_view(const char *det_content)
+{
+	char line[2048];
+	const char *cursor = det_content;
+	int in_io_section = 0;
+
+	while (*cursor) {
+		size_t line_len = 0;
+
+		while (cursor[line_len] && cursor[line_len] != '\n' &&
+		       line_len < sizeof(line) - 2)
+			line_len++;
+
+		memcpy(line, cursor, line_len);
+		if (cursor[line_len] == '\n') {
+			line[line_len++] = '\n';
+			cursor += line_len;
+		} else {
+			cursor += line_len;
+		}
+		line[line_len] = '\0';
+
+		if (!in_io_section && strncmp(line, "[io]", 4) == 0)
+			in_io_section = 1;
+
+		if (!in_io_section)
+			continue;
+
+		if (strncmp(line, "[io]", 4) == 0) {
+			printf("%s%s%s%s", color_code(C_GREEN),
+			       color_code(C_BOLD), line, color_code(C_RESET));
+		} else if (strncmp(line, "rchar:", 6) == 0 ||
+			   strncmp(line, "wchar:", 6) == 0 ||
+			   strncmp(line, "syscr:", 6) == 0 ||
+			   strncmp(line, "syscw:", 6) == 0 ||
+			   strncmp(line, "read_bytes:", 11) == 0 ||
+			   strncmp(line, "write_bytes:", 12) == 0 ||
+			   strncmp(line, "cancelled_write_bytes:", 22) == 0 ||
+			   strncmp(line, "avg_read_bytes_per_syscall:", 27) ==
+				   0 ||
+			   strncmp(line, "avg_write_bytes_per_syscall:", 28) ==
+				   0 ||
+			   strncmp(line, "io_intensity:", 13) == 0) {
+			printf("%s%s%s", color_code(C_YELLOW), line,
+			       color_code(C_RESET));
+		} else if (strncmp(line, "status:", 7) == 0) {
+			printf("%s%s%s", color_code(C_CYAN), line,
 			       color_code(C_RESET));
 		} else {
 			printf("%s", line);
@@ -576,6 +637,9 @@ static const char *view_name(int view)
 	if (view == VIEW_THREADS)
 		return "Threads";
 
+	if (view == VIEW_IO)
+		return "I/O";
+
 	return "Unknown";
 }
 
@@ -600,9 +664,9 @@ static void print_live_header(const struct live_snapshot *snap,
 	printf("%sSnapshot index:%s %d/%d\n", color_code(C_YELLOW),
 	       color_code(C_RESET), history_count - browse_offset,
 	       history_count);
-	puts("Sections: [1] Memory  [2] Network  [3] Threads");
+	puts("Sections: [1] Memory  [2] Network  [3] Threads  [4] I/O");
 	puts("History: [Up/k] older  [Down/j] newer  [f] follow live");
-	puts("Commands: 1/2/3 switch view, 0 change PID, Ctrl+C exit");
+	puts("Commands: 1/2/3/4 switch view, 0 change PID, Ctrl+C exit");
 	if (browse_offset > 0)
 		puts("Mode: browsing history (auto-refresh paused)");
 	else
@@ -742,6 +806,12 @@ static void print_live_snapshot(const struct live_snapshot *snapshot)
 		return;
 	}
 
+	if (snapshot->view == VIEW_IO) {
+		print_io_view(snapshot->det_content);
+		print_live_footer(snapshot->captured_at);
+		return;
+	}
+
 	printf("%s%s==========================================================="
 	       "====\n",
 	       color_code(C_MAGENTA), color_code(C_BOLD));
@@ -801,7 +871,6 @@ static void run_live_mode(void)
 {
 	struct live_snapshot history[MAX_SNAPSHOTS];
 	struct live_snapshot snapshot;
-	struct live_snapshot *current;
 	char pid_user[PID_INPUT_MAX];
 	int key;
 	int view = VIEW_MEMORY;
@@ -822,6 +891,8 @@ static void run_live_mode(void)
 	}
 
 	while (1) {
+		const struct live_snapshot *current;
+
 		if (browse_offset == 0) {
 			if (capture_live_snapshot(pid_user, view, &snapshot) ==
 			    0)
@@ -857,6 +928,11 @@ static void run_live_mode(void)
 					       &history_next);
 		} else if (key == '3') {
 			view = VIEW_THREADS;
+			browse_offset = 0;
+			clear_snapshot_history(history, &history_count,
+					       &history_next);
+		} else if (key == '4') {
+			view = VIEW_IO;
 			browse_offset = 0;
 			clear_snapshot_history(history, &history_count,
 					       &history_next);

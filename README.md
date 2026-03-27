@@ -33,6 +33,7 @@
 - **Visual Memory Map**: Proportional bar chart visualization of memory regions
 - **Open Sockets**: List all open sockets with family, type, state, protocol, addresses, and per-socket traffic stats
 - **Network Stats (Brief)**: Per-process TCP counters, socket counts (TCP/UDP/UNIX), drops, net devices, and top talkers
+- **I/O Stats**: Per-process I/O accounting (`rchar`, `wchar`, `syscr`, `syscw`, storage bytes) with averages and intensity
 - **Thread Information**: List all threads with TID, state, CPU usage, priority, and CPU affinity
 - **CPU Usage Tracking**: Real-time CPU percentage calculation per process and thread
 - **ELF Section Analysis**: Binary base address and section boundaries
@@ -70,7 +71,7 @@ Running without arguments starts a live dashboard:
 
 - Auto-refreshes every 1 second
 - Defaults to section `1` (memory-related output)
-- Shows quick controls at the top: `1` memory, `2` network, `3` threads
+- Shows quick controls at the top: `1` memory, `2` network, `3` threads, `4` I/O
 - Prints timestamps at top and bottom in `YY/MM/DD HH:MM:SS`
 - Keeps a snapshot history (up to 120 entries) for in-app navigation
 - Press Up/`k` for older snapshots, Down/`j` for newer snapshots, `f` to resume live follow
@@ -201,6 +202,7 @@ ProcLens/
 - Socket families: AF_INET (IPv4), AF_INET6 (IPv6), AF_UNIX (Unix domain), AF_NETLINK (Netlink)
 - UDP traffic values are queue-based (current queued packets/bytes), while TCP traffic values are lifetime socket counters.
 - **Top Talkers**: The `[network]` section includes up to three sockets ranked by total bytes (`RX + TX`) at read time.
+- **I/O Stats**: The `[io]` section includes syscall bytes/counters, storage bytes, derived average bytes per syscall, and `io_intensity` (`read_bytes + write_bytes`).
 - Thread STATE: R=Running, S=Sleeping, D=Uninterruptible, T=Stopped, t=Traced, Z=Zombie, X=Dead
 - PRIORITY: Shown as nice value (-20 to 19, where lower is higher priority)
 - CPU_AFFINITY: Shows which CPUs the thread can run on

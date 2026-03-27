@@ -290,6 +290,8 @@ static void test_det_preamble_stops_before_sections(void)
 			  "CPU Usage:       1.00%\n"
 			  "Memory Pressure Statistics:\n"
 			  "  RSS (Resident): 10 KB\n"
+			  "[io]\n"
+			  "rchar: 1\n"
 			  "[network]\n"
 			  "sockets_total: 1\n";
 
@@ -300,6 +302,7 @@ static void test_det_preamble_stops_before_sections(void)
 	assert(strstr(output_buf, "Name:            foo"));
 	assert(strstr(output_buf, "CPU Usage:       1.00%"));
 	assert(!strstr(output_buf, "Memory Pressure Statistics:"));
+	assert(!strstr(output_buf, "[io]"));
 	assert(!strstr(output_buf, "[network]"));
 }
 
@@ -312,7 +315,9 @@ static void test_memory_view_filters_network_section(void)
 			  "Memory Layout Visualization:\n"
 			  "  [== ]\n"
 			  "[network]\n"
-			  "sockets_total: 2\n";
+			  "sockets_total: 2\n"
+			  "[io]\n"
+			  "rchar: 1\n";
 
 	reset_mocks();
 	print_memory_view(det);
@@ -321,6 +326,7 @@ static void test_memory_view_filters_network_section(void)
 	assert(strstr(output_buf, "Memory Layout Visualization:"));
 	assert(!strstr(output_buf, "[network]"));
 	assert(!strstr(output_buf, "sockets_total"));
+	assert(!strstr(output_buf, "[io]"));
 }
 
 static void test_network_view_starts_from_network_section(void)
@@ -329,7 +335,9 @@ static void test_network_view_starts_from_network_section(void)
 			  "  RSS (Resident): 10 KB\n"
 			  "[network]\n"
 			  "sockets_total: 2\n"
-			  "Open Sockets:\n";
+			  "Open Sockets:\n"
+			  "[io]\n"
+			  "rchar: 123\n";
 
 	reset_mocks();
 	print_network_view(det);
@@ -338,6 +346,28 @@ static void test_network_view_starts_from_network_section(void)
 	assert(strstr(output_buf, "[network]"));
 	assert(strstr(output_buf, "sockets_total: 2"));
 	assert(strstr(output_buf, "Open Sockets:"));
+	assert(!strstr(output_buf, "[io]"));
+	assert(!strstr(output_buf, "rchar: 123"));
+}
+
+static void test_io_view_starts_from_io_section(void)
+{
+	const char *det = "Memory Pressure Statistics:\n"
+			  "  RSS (Resident): 10 KB\n"
+			  "[network]\n"
+			  "sockets_total: 2\n"
+			  "[io]\n"
+			  "rchar: 123\n"
+			  "io_intensity: 456\n";
+
+	reset_mocks();
+	print_io_view(det);
+
+	assert(!strstr(output_buf, "Memory Pressure Statistics:"));
+	assert(!strstr(output_buf, "[network]"));
+	assert(strstr(output_buf, "[io]"));
+	assert(strstr(output_buf, "rchar: 123"));
+	assert(strstr(output_buf, "io_intensity: 456"));
 }
 
 static void test_format_current_time_layout(void)
@@ -429,6 +459,7 @@ int main(void)
 	test_det_preamble_stops_before_sections();
 	test_memory_view_filters_network_section();
 	test_network_view_starts_from_network_section();
+	test_io_view_starts_from_io_section();
 	test_format_current_time_layout();
 	test_live_header_and_footer_show_timestamps();
 	test_snapshot_history_offset_navigation();

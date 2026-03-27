@@ -284,6 +284,51 @@ static void print_memory_pressure(struct seq_file *m, struct task_struct *task)
 	seq_puts(m, "----------------------\n");
 }
 
+/* Display per-process I/O statistics from task I/O accounting */
+static void print_io_stats(struct seq_file *m, struct task_struct *task)
+{
+	u64 rchar;
+	u64 wchar;
+	u64 syscr;
+	u64 syscw;
+	u64 read_bytes;
+	u64 write_bytes;
+	u64 cancelled_write_bytes;
+	u64 avg_read_bytes;
+	u64 avg_write_bytes;
+	u64 io_intensity;
+
+	seq_puts(m, "\n[io]\n");
+
+#ifdef CONFIG_TASK_XACCT
+	rchar = (u64)READ_ONCE(task->ioac.rchar);
+	wchar = (u64)READ_ONCE(task->ioac.wchar);
+	syscr = (u64)READ_ONCE(task->ioac.syscr);
+	syscw = (u64)READ_ONCE(task->ioac.syscw);
+	read_bytes = (u64)READ_ONCE(task->ioac.read_bytes);
+	write_bytes = (u64)READ_ONCE(task->ioac.write_bytes);
+	cancelled_write_bytes =
+		(u64)READ_ONCE(task->ioac.cancelled_write_bytes);
+
+	avg_read_bytes = calculate_avg_bytes_per_syscall(rchar, syscr);
+	avg_write_bytes = calculate_avg_bytes_per_syscall(wchar, syscw);
+	io_intensity = calculate_io_intensity(read_bytes, write_bytes);
+
+	seq_printf(m, "rchar: %llu\n", rchar);
+	seq_printf(m, "wchar: %llu\n", wchar);
+	seq_printf(m, "syscr: %llu\n", syscr);
+	seq_printf(m, "syscw: %llu\n", syscw);
+	seq_printf(m, "read_bytes: %llu\n", read_bytes);
+	seq_printf(m, "write_bytes: %llu\n", write_bytes);
+	seq_printf(m, "cancelled_write_bytes: %llu\n", cancelled_write_bytes);
+	seq_printf(m, "avg_read_bytes_per_syscall: %llu\n", avg_read_bytes);
+	seq_printf(m, "avg_write_bytes_per_syscall: %llu\n", avg_write_bytes);
+	seq_printf(m, "io_intensity: %llu\n", io_intensity);
+#else
+	seq_puts(m, "status: unavailable (CONFIG_TASK_XACCT disabled)\n");
+#endif
+}
+
 /* Display brief per-process network statistics
  * Counts are best-effort and primarily reflect TCP socket counters.
  */
@@ -657,6 +702,7 @@ static int elfdet_show(struct seq_file *m, void *v)
 					  stack_end);
 	print_network_stats(m, task);
 	print_sockets(m, task);
+	print_io_stats(m, task);
 
 	return 0;
 }

@@ -4,6 +4,9 @@
 
 This is a Linux kernel module project that provides process information through `/proc/elf_det/`. The module displays detailed process information including memory mappings, CPU usage, memory pressure statistics, and ELF binary details.
 
+Current output includes memory pressure/layout, brief network stats, open sockets,
+per-process I/O statistics, and thread information.
+
 ## Code Style and Quality Standards
 
 ### Kernel Coding Style (HIGHEST PRIORITY)
@@ -135,6 +138,20 @@ Current implementation includes:
 
 Use these as examples when adding similar statistics.
 
+### I/O Statistics
+
+Current implementation includes:
+- Syscall byte counters (`rchar`, `wchar`) and syscall counts (`syscr`, `syscw`)
+- Storage byte counters (`read_bytes`, `write_bytes`, `cancelled_write_bytes`)
+- Derived metrics (`avg_read_bytes_per_syscall`,
+  `avg_write_bytes_per_syscall`, `io_intensity`)
+
+When extending I/O output:
+1. Add or update helper functions in `elf_det.h`
+2. Keep division-by-zero handling explicit in helper logic
+3. Update `e2e/qemu-test.sh` checks for new fields
+4. Keep `proc_elf_ctrl` view filtering in sync (section key `4` for I/O)
+
 ## Build System (Makefile)
 
 ### Target Categories
@@ -219,13 +236,14 @@ Tests validate actual kernel module behavior in isolated environment.
 
 ### Kernel Module (`elf_det.c`)
 
-- `print_memory_maps()` - Display memory region information
-- `print_cpu_usage()` - Show CPU and timing statistics  
 - `print_memory_pressure()` - Display memory pressure metrics
 - `print_memory_layout()` - Show heap, stack, code segments
-- `print_elf_info()` - Display ELF binary details
+- `print_memory_layout_visualization()` - Show proportional memory map bars
+- `print_io_stats()` - Display per-process I/O counters and derived metrics
 - `print_network_stats()` - Display brief per-process network statistics
 - `print_sockets()` - Display open sockets and endpoint details
+- `elfdet_show()` - Main process information output handler
+- `elfdet_threads_show()` - Thread listing output handler
 
 ### Helpers (`elf_det.h`)
 
@@ -235,6 +253,8 @@ Tests validate actual kernel module behavior in isolated environment.
 - `is_valid_oom_score_adj()` - Validate OOM score range
 - `calculate_memory_usage_percent()` - Compute memory percentage
 - `is_high_memory_pressure()` - Determine if memory pressure is high
+- `calculate_avg_bytes_per_syscall()` - Compute average bytes per syscall safely
+- `calculate_io_intensity()` - Compute read/write storage intensity
 
 ## Version and Release
 
