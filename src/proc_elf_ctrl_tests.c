@@ -23,6 +23,10 @@ static int fail_pid_open;
 static int fail_det_open;
 static int fail_threads_open;
 static int fail_cmdline_open;
+static int module_loaded;
+static int proc_pid_present;
+static int proc_det_present;
+static int proc_threads_present;
 
 static void append_output(const char *fmt, ...)
 {
@@ -64,6 +68,10 @@ static void reset_mocks(void)
 	fail_det_open = 0;
 	fail_threads_open = 0;
 	fail_cmdline_open = 0;
+	module_loaded = 1;
+	proc_pid_present = 1;
+	proc_det_present = 1;
+	proc_threads_present = 1;
 
 	memset(cmdline_content, 0, sizeof(cmdline_content));
 	cmdline_len = 0;
@@ -102,7 +110,31 @@ static FILE *mock_fopen(const char *path, const char *mode)
 		return fmemopen((void *)cmdline_content, cmdline_len, "r");
 	}
 
+	if (!strcmp(path, "/proc/modules") && strchr(mode, 'r')) {
+		if (module_loaded)
+			return fmemopen((void *)"elf_det 0 0 - Live 0x0\n", 23,
+					"r");
+
+		return fmemopen((void *)"", 0, "r");
+	}
+
 	return NULL;
+}
+
+static int mock_access(const char *path, int mode)
+{
+	(void)mode;
+
+	if (!strcmp(path, "/fake_proc/pid"))
+		return proc_pid_present ? 0 : -1;
+
+	if (!strcmp(path, "/fake_proc/det"))
+		return proc_det_present ? 0 : -1;
+
+	if (!strcmp(path, "/fake_proc/threads"))
+		return proc_threads_present ? 0 : -1;
+
+	return -1;
 }
 
 static int mock_printf(const char *fmt, ...)
@@ -131,6 +163,7 @@ static void mock_perror(const char *s)
 }
 
 #define fopen  mock_fopen
+#define access mock_access
 #define printf mock_printf
 #define puts   mock_puts
 #define perror mock_perror
@@ -140,6 +173,7 @@ static void mock_perror(const char *s)
 #undef perror
 #undef puts
 #undef printf
+#undef access
 #undef fopen
 
 static void test_build_proc_path_helper(void)
@@ -197,7 +231,7 @@ static void test_print_process_info_happy_path(void)
 
 	print_process_info("1234");
 
-	assert(pid_stream_buf != NULL);
+	assert(pid_stream_buf);
 	assert(strcmp(pid_stream_buf, "1234") == 0);
 	assert(strstr(output_buf, "PROCESS INFORMATION"));
 	assert(strstr(output_buf, "THREAD INFORMATION"));
@@ -207,16 +241,46 @@ static void test_print_process_info_happy_path(void)
 
 static void test_main_argument_pid_is_bounded(void)
 {
-	char long_pid[] = "123456789012345678901234567890";
-	char *argv[] = {"prog", long_pid};
+	static const char *const argv[] = {
+		"prog",
+		"123456789012345678901234567890",
+	};
+	int rc;
 
 	reset_mocks();
 	cmdline_len = 0;
-	proc_elf_ctrl_entry(2, argv);
+	rc = proc_elf_ctrl_entry(2, (char **)argv);
 
-	assert(pid_stream_buf != NULL);
+	assert(rc == 0);
+	assert(pid_stream_buf);
 	assert(pid_stream_len == 19);
 	assert(strncmp(pid_stream_buf, "1234567890123456789", 19) == 0);
+}
+
+static void test_main_exits_when_module_not_loaded(void)
+{
+	static const char *const argv[] = {"prog", "1"};
+	int rc;
+
+	reset_mocks();
+	module_loaded = 0;
+	rc = proc_elf_ctrl_entry(2, (char **)argv);
+
+	assert(rc == -1);
+	assert(!pid_stream_buf);
+}
+
+static void test_main_exits_when_proc_file_missing(void)
+{
+	static const char *const argv[] = {"prog", "1"};
+	int rc;
+
+	reset_mocks();
+	proc_threads_present = 0;
+	rc = proc_elf_ctrl_entry(2, (char **)argv);
+
+	assert(rc == -1);
+	assert(!pid_stream_buf);
 }
 
 static void test_det_preamble_stops_before_sections(void)
@@ -308,8 +372,9 @@ static void test_live_header_and_footer_show_timestamps(void)
 
 	reset_mocks();
 	memset(&snap, 0, sizeof(snap));
-	strcpy(snap.pid, "123");
-	strcpy(snap.captured_at, "26/03/26 12:34:56");
+	snprintf(snap.pid, sizeof(snap.pid), "%s", "123");
+	snprintf(snap.captured_at, sizeof(snap.captured_at), "%s",
+		 "26/03/26 12:34:56");
 	snap.view = VIEW_MEMORY;
 	print_live_header(&snap, 0, 1);
 	print_live_footer(snap.captured_at);
@@ -329,23 +394,25 @@ static void test_snapshot_history_offset_navigation(void)
 	memset(history, 0, sizeof(history));
 	memset(&snap, 0, sizeof(snap));
 
-	strcpy(snap.pid, "111");
-	strcpy(snap.captured_at, "26/03/26 12:00:01");
+	snprintf(snap.pid, sizeof(snap.pid), "%s", "111");
+	snprintf(snap.captured_at, sizeof(snap.captured_at), "%s",
+		 "26/03/26 12:00:01");
 	snap.view = VIEW_MEMORY;
 	append_snapshot(history, &history_count, &history_next, &snap);
 
-	strcpy(snap.pid, "222");
-	strcpy(snap.captured_at, "26/03/26 12:00:02");
+	snprintf(snap.pid, sizeof(snap.pid), "%s", "222");
+	snprintf(snap.captured_at, sizeof(snap.captured_at), "%s",
+		 "26/03/26 12:00:02");
 	append_snapshot(history, &history_count, &history_next, &snap);
 
 	picked =
 		get_snapshot_by_offset(history, history_count, history_next, 0);
-	assert(picked != NULL);
+	assert(picked);
 	assert(strcmp(picked->pid, "222") == 0);
 
 	picked =
 		get_snapshot_by_offset(history, history_count, history_next, 1);
-	assert(picked != NULL);
+	assert(picked);
 	assert(strcmp(picked->pid, "111") == 0);
 
 	clear_snapshot_history(history, &history_count, &history_next);
@@ -357,6 +424,8 @@ int main(void)
 	test_print_cmdline_replaces_nul_with_space();
 	test_print_process_info_happy_path();
 	test_main_argument_pid_is_bounded();
+	test_main_exits_when_module_not_loaded();
+	test_main_exits_when_proc_file_missing();
 	test_det_preamble_stops_before_sections();
 	test_memory_view_filters_network_section();
 	test_network_view_starts_from_network_section();

@@ -177,6 +177,9 @@ Verify no-argument live mode behavior:
 ```
 
 Expected behavior:
+- Program prints the startup logo once, then validates module/proc readiness
+- If `elf_det` is not loaded, program exits immediately with status `-1`
+- If required proc files are missing (`pid`, `det`, `threads`), program exits immediately with status `-1`
 - Screen refreshes every 1 second
 - Header shows controls (`1` memory, `2` network, `3` threads, `0` switch PID)
 - Each refresh shows `Snapshot start` and `Snapshot end` timestamps in `YY/MM/DD HH:MM:SS`
