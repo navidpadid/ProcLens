@@ -41,7 +41,6 @@ int main(void)
 	struct sockaddr_un unix_addr;
 	int tcp_sock = -1, udp_sock = -1, unix_sock = -1;
 	long i;
-	int rc;
 
 	printf("Multi-threaded test application with sockets\n");
 	printf("Main PID: %d\n", getpid());
@@ -119,6 +118,8 @@ int main(void)
 
 	/* Create worker threads */
 	for (i = 0; i < NUM_THREADS; i++) {
+		int rc;
+
 		rc = pthread_create(&threads[i], NULL, worker_thread,
 				    (void *)i);
 		if (rc) {

@@ -126,13 +126,35 @@ Controls shown in the header:
 - `1` - Memory section (default)
 - `2` - Network section
 - `3` - Thread section
+- `4` - I/O section
 - `0` - Prompt for a new PID (switch process)
 - `Up` or `k` - Older snapshot
 - `Down` or `j` - Newer snapshot
 - `f` - Return to live-follow mode
 
-Keys `1`, `2`, `3` switch sections instantly (no Enter required). Pressing `0` temporarily
+Keys `1`, `2`, `3`, `4` switch sections instantly (no Enter required). Pressing `0` temporarily
 restores cooked terminal mode so the user can type a PID, then returns to raw mode.
+
+### I/O Stats
+
+The process information output includes an I/O section (`[io]`) sourced from task I/O accounting:
+
+| Field | Description | Source |
+|-------|-------------|--------|
+| **rchar** | Bytes returned by read-like syscalls | `task->ioac.rchar` |
+| **wchar** | Bytes passed to write-like syscalls | `task->ioac.wchar` |
+| **syscr** | Number of read-like syscalls | `task->ioac.syscr` |
+| **syscw** | Number of write-like syscalls | `task->ioac.syscw` |
+| **read_bytes** | Bytes actually read from storage | `task->ioac.read_bytes` |
+| **write_bytes** | Bytes actually written to storage | `task->ioac.write_bytes` |
+| **cancelled_write_bytes** | Dirty bytes not written due to truncation/deletion | `task->ioac.cancelled_write_bytes` |
+| **avg_read_bytes_per_syscall** | Average read payload per syscall | `rchar / max(syscr, 1)` |
+| **avg_write_bytes_per_syscall** | Average write payload per syscall | `wchar / max(syscw, 1)` |
+| **io_intensity** | Aggregate storage traffic | `read_bytes + write_bytes` |
+
+Notes:
+- The section is available when `CONFIG_TASK_XACCT` is enabled in the running kernel.
+- If task accounting is unavailable, the section prints an explicit `status: unavailable` line.
 
 ### Argument Mode
 ```bash

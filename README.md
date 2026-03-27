@@ -6,7 +6,7 @@
 [![Last Commit](https://img.shields.io/github/last-commit/navidpadid/ProcLens?style=for-the-badge&logo=git&logoColor=white)](https://github.com/navidpadid/ProcLens/commits/main)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
 
-> A Linux kernel module that extracts detailed process and thread information including memory layout, CPU usage, ELF sections, networking sockets, and statistics via `/proc` filesystem.
+> A Linux kernel module that surfaces process and thread details through `/proc`, including memory layout, CPU usage, network/socket activity, per-process I/O accounting, and live section-based inspection.
 
 ## Live Demo
 
@@ -33,11 +33,12 @@
 - **Visual Memory Map**: Proportional bar chart visualization of memory regions
 - **Open Sockets**: List all open sockets with family, type, state, protocol, addresses, and per-socket traffic stats
 - **Network Stats (Brief)**: Per-process TCP counters, socket counts (TCP/UDP/UNIX), drops, net devices, and top talkers
+- **I/O Stats**: Per-process I/O accounting (`rchar`, `wchar`, `syscr`, `syscw`, storage bytes) with averages and intensity
 - **Thread Information**: List all threads with TID, state, CPU usage, priority, and CPU affinity
 - **CPU Usage Tracking**: Real-time CPU percentage calculation per process and thread
 - **ELF Section Analysis**: Binary base address and section boundaries
 - **Proc Interface**: Easy access through `/proc/elf_det/`
-- **Live Dashboard Mode**: No-arg mode refreshes every 1s with switchable sections
+- **Live Dashboard Mode**: No-arg mode refreshes every 1s with switchable Memory, Network, Threads, and I/O sections
 - **Comprehensive Testing**: Unit tests and QEMU-based E2E testing
 - **Code Quality**: Pre-configured static analysis (sparse, cppcheck, checkpatch)
 
@@ -70,7 +71,8 @@ Running without arguments starts a live dashboard:
 
 - Auto-refreshes every 1 second
 - Defaults to section `1` (memory-related output)
-- Shows quick controls at the top: `1` memory, `2` network, `3` threads
+- Shows quick controls at the top: `1` memory, `2` network, `3` threads, `4` I/O
+- Shows command hints in-app: `1/2/3/4` switch sections, `0` changes PID
 - Prints timestamps at top and bottom in `YY/MM/DD HH:MM:SS`
 - Keeps a snapshot history (up to 120 entries) for in-app navigation
 - Press Up/`k` for older snapshots, Down/`j` for newer snapshots, `f` to resume live follow
@@ -201,6 +203,8 @@ ProcLens/
 - Socket families: AF_INET (IPv4), AF_INET6 (IPv6), AF_UNIX (Unix domain), AF_NETLINK (Netlink)
 - UDP traffic values are queue-based (current queued packets/bytes), while TCP traffic values are lifetime socket counters.
 - **Top Talkers**: The `[network]` section includes up to three sockets ranked by total bytes (`RX + TX`) at read time.
+- **I/O Stats**: The `[io]` section includes syscall bytes/counters, storage bytes, derived average bytes per syscall, and `io_intensity` (`read_bytes + write_bytes`).
+- If the running kernel disables task I/O accounting (`CONFIG_TASK_XACCT`), the I/O section prints a clear `status: unavailable` line instead of counters.
 - Thread STATE: R=Running, S=Sleeping, D=Uninterruptible, T=Stopped, t=Traced, Z=Zombie, X=Dead
 - PRIORITY: Shown as nice value (-20 to 19, where lower is higher priority)
 - CPU_AFFINITY: Shows which CPUs the thread can run on
@@ -236,7 +240,7 @@ General-purpose C/C++ static analyzer. Finds:
 #### clang-format
 Code formatter that ensures consistent style:
 - 8-space tabs (kernel standard)
-- 80-column limit
+- 100-column relaxed kernel limit used by this project
 - Linux brace style
 - Proper spacing and alignment
 

@@ -137,6 +137,18 @@ if ! echo "$PROC_OUT" | grep -q "top_talkers:"; then
     echo "[FAIL] Network top_talkers missing for PID $$"
     exit 1
 fi
+if ! echo "$PROC_OUT" | grep -q "\[io\]"; then
+    echo "[FAIL] I/O stats section missing for PID $$"
+    exit 1
+fi
+if ! echo "$PROC_OUT" | grep -Eq "avg_read_bytes_per_syscall:|status: unavailable"; then
+    echo "[FAIL] I/O average read metric missing for PID $$"
+    exit 1
+fi
+if ! echo "$PROC_OUT" | grep -Eq "io_intensity:|status: unavailable"; then
+    echo "[FAIL] I/O intensity metric missing for PID $$"
+    exit 1
+fi
 if ! echo "$PROC_OUT" | grep -q "Open Sockets"; then
     echo "[FAIL] Open sockets section missing for PID $$"
     exit 1
@@ -181,6 +193,18 @@ if ! echo "$PROC_OUT" | grep -q "net_devices:"; then
 fi
 if ! echo "$PROC_OUT" | grep -q "top_talkers:"; then
     echo "[FAIL] Network top_talkers missing for PID 1"
+    exit 1
+fi
+if ! echo "$PROC_OUT" | grep -q "\[io\]"; then
+    echo "[FAIL] I/O stats section missing for PID 1"
+    exit 1
+fi
+if ! echo "$PROC_OUT" | grep -Eq "avg_read_bytes_per_syscall:|status: unavailable"; then
+    echo "[FAIL] I/O average read metric missing for PID 1"
+    exit 1
+fi
+if ! echo "$PROC_OUT" | grep -Eq "io_intensity:|status: unavailable"; then
+    echo "[FAIL] I/O intensity metric missing for PID 1"
     exit 1
 fi
 if ! echo "$PROC_OUT" | grep -q "Open Sockets"; then
@@ -242,6 +266,18 @@ if ! echo "$PROC_OUT" | grep -q "net_devices:"; then
 fi
 if ! echo "$PROC_OUT" | grep -q "top_talkers:"; then
     echo "[FAIL] Network top_talkers missing for PID $MULTITHREAD_PID"
+    exit 1
+fi
+if ! echo "$PROC_OUT" | grep -q "\[io\]"; then
+    echo "[FAIL] I/O stats section missing for PID $MULTITHREAD_PID"
+    exit 1
+fi
+if ! echo "$PROC_OUT" | grep -Eq "avg_read_bytes_per_syscall:|status: unavailable"; then
+    echo "[FAIL] I/O average read metric missing for PID $MULTITHREAD_PID"
+    exit 1
+fi
+if ! echo "$PROC_OUT" | grep -Eq "io_intensity:|status: unavailable"; then
+    echo "[FAIL] I/O intensity metric missing for PID $MULTITHREAD_PID"
     exit 1
 fi
 if ! echo "$PROC_OUT" | grep -q "Open Sockets"; then

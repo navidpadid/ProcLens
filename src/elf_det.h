@@ -496,6 +496,27 @@ static inline int is_high_memory_pressure(unsigned long rss_kb,
 	return (swap_kb * 10 > rss_kb); /* swap > 10% of RSS */
 }
 
+/* I/O Statistics Helper Functions */
+
+/* Calculate average bytes per syscall
+ * Returns 0 when syscall_count is 0 to avoid division by zero
+ */
+static inline eh_u64 calculate_avg_bytes_per_syscall(eh_u64 total_bytes,
+						     eh_u64 syscall_count)
+{
+	if (syscall_count == 0)
+		return 0;
+
+	return total_bytes / syscall_count;
+}
+
+/* Calculate storage I/O intensity as read + write bytes */
+static inline eh_u64 calculate_io_intensity(eh_u64 read_bytes,
+					    eh_u64 write_bytes)
+{
+	return read_bytes + write_bytes;
+}
+
 /* Convert socket family value to string representation
  * Common values: AF_INET (2), AF_INET6 (10), AF_UNIX (1), AF_NETLINK (16)
  * Returns string representation or "UNKNOWN" for unrecognized families
