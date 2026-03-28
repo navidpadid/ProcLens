@@ -2,7 +2,7 @@
 
 ## Project Overview
 
-This is a Linux kernel module project that provides process information through `/proc/elf_det/`. The module displays detailed process information including memory mappings, CPU usage, memory pressure statistics, and ELF binary details.
+This is a Linux kernel module project that provides process information through `/proc/proclens_module/`. The module displays detailed process information including memory mappings, CPU usage, memory pressure statistics, and ELF binary details.
 
 Current output includes memory pressure/layout, brief network stats, open sockets,
 per-process I/O statistics, and thread information.
@@ -48,10 +48,10 @@ The pre-commit hook automatically runs format-check and cppcheck.
 
 ### Source Files (`src/`)
 
-- `elf_det.c` / `elf_det.h` - Main kernel module and shared helpers
-- `elf_det_tests.c` - Unit tests for elf_det helpers
-- `proc_elf_ctrl.c` / `proc_elf_ctrl.h` - Control utility and helpers
-- `proc_elf_ctrl_tests.c` - Unit tests for proc_elf_ctrl helpers
+- `proclens_module.c` / `proclens_module.h` - Main kernel module and shared helpers
+- `proclens_module_tests.c` - Unit tests for proclens_module helpers
+- `proclens.c` / `proclens.h` - Control utility and helpers
+- `proclens_tests.c` - Unit tests for proclens helpers
 - `test_multithread.c` - Multi-threaded test application
 
 ### Documentation (`docs/`)
@@ -87,7 +87,7 @@ The pre-commit hook automatically runs format-check and cppcheck.
 
 ### Header Files
 
-- `elf_det.h` contains helper functions that work in BOTH kernel and userspace
+- `proclens_module.h` contains helper functions that work in BOTH kernel and userspace
 - Use `#ifdef __KERNEL__` to separate kernel-only code
 - Keep helpers pure (no side effects) for testability
 - Add comprehensive documentation comments for public functions
@@ -119,7 +119,7 @@ When adding new helper functions to headers:
 
 ### Adding New Statistics
 
-1. Add calculation helper to header file (e.g., `elf_det.h`)
+1. Add calculation helper to header file (e.g., `proclens_module.h`)
 2. Add unit tests for the helper
 3. Call helper in kernel module print function
 4. Update `e2e/qemu-test.sh` to validate output
@@ -147,10 +147,10 @@ Current implementation includes:
   `avg_write_bytes_per_syscall`, `io_intensity`)
 
 When extending I/O output:
-1. Add or update helper functions in `elf_det.h`
+1. Add or update helper functions in `proclens_module.h`
 2. Keep division-by-zero handling explicit in helper logic
 3. Update `e2e/qemu-test.sh` checks for new fields
-4. Keep `proc_elf_ctrl` view filtering in sync (section key `4` for I/O)
+4. Keep `proclens` view filtering in sync (section key `4` for I/O)
 
 ## Build System (Makefile)
 
@@ -234,7 +234,7 @@ Tests validate actual kernel module behavior in isolated environment.
 
 ## Key Functions Reference
 
-### Kernel Module (`elf_det.c`)
+### Kernel Module (`proclens_module.c`)
 
 - `print_memory_pressure()` - Display memory pressure metrics
 - `print_memory_layout()` - Show heap, stack, code segments
@@ -242,10 +242,10 @@ Tests validate actual kernel module behavior in isolated environment.
 - `print_io_stats()` - Display per-process I/O counters and derived metrics
 - `print_network_stats()` - Display brief per-process network statistics
 - `print_sockets()` - Display open sockets and endpoint details
-- `elfdet_show()` - Main process information output handler
-- `elfdet_threads_show()` - Thread listing output handler
+- `proclens_module_show()` - Main process information output handler
+- `proclens_module_threads_show()` - Thread listing output handler
 
-### Helpers (`elf_det.h`)
+### Helpers (`proclens_module.h`)
 
 - `calculate_rss_pages()` - Compute resident set size from mm counters
 - `pages_to_kb()` - Convert pages to kilobytes

@@ -1,19 +1,19 @@
 # Technical Details
 
-## Kernel Module (`elf_det.c`)
+## Kernel Module (`proclens_module.c`)
 
-The kernel module creates entries in `/proc/elf_det/`:
-- `/proc/elf_det/pid` - Read/write file to set target PID and read back current buffer value
-- `/proc/elf_det/det` - Read-only file to retrieve process information
-- `/proc/elf_det/threads` - Read-only file to retrieve thread information
+The kernel module creates entries in `/proc/proclens_module/`:
+- `/proc/proclens_module/pid` - Read/write file to set target PID and read back current buffer value
+- `/proc/proclens_module/det` - Read-only file to retrieve process information
+- `/proc/proclens_module/threads` - Read-only file to retrieve thread information
 
 ### Key Functions
 
-- `elfdet_show()` - Main function to gather and format process information
-- `elfdet_threads_show()` - Gathers thread information for all threads in a process
+- `proclens_module_show()` - Main function to gather and format process information
+- `proclens_module_threads_show()` - Gathers thread information for all threads in a process
 - `find_stack_vma_end()` - Finds stack VMA lower boundary by iterating VMAs
 - `procfile_write()` - Handles PID input from user space
-- `procfile_read()` - Returns formatted `/proc/elf_det/pid` buffer content
+- `procfile_read()` - Returns formatted `/proc/proclens_module/pid` buffer content
 
 ### Memory Information Extracted
 
@@ -110,13 +110,13 @@ Shows both `start_stack` (top/base) and `stack_end` (current lower boundary). Th
 - `mm_types.h` - Memory management structures
 - Maple tree API - Modern VMA iteration (kernel 6.8+)
 
-## User Program (`proc_elf_ctrl.c`)
+## User Program (`proclens.c`)
 
 Simple C program that supports two modes:
 
 ### Live Mode (No Arguments)
 ```bash
-./build/proc_elf_ctrl
+./build/proclens
 ```
 Prompts for a PID, then enters a 1-second refresh loop with section filtering.
 Each refresh prints start/end timestamps in `YY/MM/DD HH:MM:SS`.
@@ -158,7 +158,7 @@ Notes:
 
 ### Argument Mode
 ```bash
-./build/proc_elf_ctrl <PID>
+./build/proclens <PID>
 ```
 Non-interactive mode - write PID once and print both process and thread information.
 
@@ -167,14 +167,14 @@ Non-interactive mode - write PID once and print both process and thread informat
 You can override the proc directory for testing:
 
 ```bash
-ELF_DET_PROC_DIR=/tmp/fakeproc ./build/proc_elf_ctrl 12345
+PROCLENS_PROC_DIR=/tmp/fakeproc ./build/proclens 12345
 ```
 
 Internally, path construction is handled via `build_proc_path()`.
 
 ## Helper Libraries
 
-### `src/elf_det.h`
+### `src/proclens_module.h`
 Pure functions for CPU usage, BSS range, heap range, thread state, and address range checking:
 - `compute_usage_permyriad()` - CPU usage calculation
 - `compute_bss_range()` - BSS boundary validation
@@ -183,13 +183,13 @@ Pure functions for CPU usage, BSS range, heap range, thread state, and address r
 
 Works in both kernel and user space contexts.
 
-### `src/proc_elf_ctrl.h`
+### `src/proclens.h`
 Path building with environment override:
-- `build_proc_path()` - Constructs `/proc/elf_det/` paths with `ELF_DET_PROC_DIR` support
+- `build_proc_path()` - Constructs `/proc/proclens_module/` paths with `PROCLENS_PROC_DIR` support
 
 ## Output Format
 
-### Process Information (`/proc/elf_det/det`)
+### Process Information (`/proc/proclens_module/det`)
 
 The output is human-readable and grouped into sections:
 
@@ -200,7 +200,7 @@ The output is human-readable and grouped into sections:
 - Network stats (brief)
 - Open sockets (file descriptors, address families, connection states)
 
-### Thread Information (`/proc/elf_det/threads`)
+### Thread Information (`/proc/proclens_module/threads`)
 ```
 TID     NAME    CPU(%)  STATE   PRIORITY        NICE    CPU_AFF
 ```
