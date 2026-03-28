@@ -7,7 +7,11 @@
 #include <sys/select.h>
 #include <termios.h>
 #include <time.h>
-#include "proc_elf_ctrl.h"
+#include "proclens.h"
+
+#ifndef PROCLENS_VERSION
+#define PROCLENS_VERSION "dev"
+#endif
 
 #define C_RESET	  "\033[0m"
 #define C_BOLD	  "\033[1m"
@@ -143,7 +147,7 @@ static int ensure_module_loaded(void)
 {
 	int loaded;
 
-	loaded = is_module_loaded("elf_det");
+	loaded = is_module_loaded("proclens_module");
 	if (loaded < 0) {
 		perror("open /proc/modules");
 		return -1;
@@ -151,10 +155,12 @@ static int ensure_module_loaded(void)
 
 	if (loaded == 0) {
 		fprintf(stderr,
-			"%serror:%s kernel module 'elf_det' is not loaded\n",
+			"%serror:%s kernel module 'proclens_module' is not "
+			"loaded\n",
 			color_code(C_YELLOW), color_code(C_RESET));
-		fprintf(stderr, "hint: run 'sudo insmod ./build/elf_det.ko' or "
-				"'sudo make install'\n");
+		fprintf(stderr,
+			"hint: run 'sudo insmod ./build/proclens_module.ko' or "
+			"'sudo make install'\n");
 		return -1;
 	}
 
@@ -182,8 +188,9 @@ static int ensure_proc_files_present(void)
 				"%s\n",
 				color_code(C_YELLOW), color_code(C_RESET),
 				path);
-			fprintf(stderr, "hint: confirm /proc/elf_det is "
-					"mounted and initialized\n");
+			fprintf(stderr,
+				"hint: confirm /proc/proclens_module is "
+				"mounted and initialized\n");
 			free(path);
 			return -1;
 		}
@@ -192,6 +199,17 @@ static int ensure_proc_files_present(void)
 	}
 
 	return 0;
+}
+
+static int ensure_root_privileges(void)
+{
+	if (geteuid() == 0)
+		return 0;
+
+	fprintf(stderr, "%serror:%s proclens requires root privileges\n",
+		color_code(C_YELLOW), color_code(C_RESET));
+	fprintf(stderr, "hint: run with sudo, e.g. 'sudo proclens'\n");
+	return -1;
 }
 
 static void print_cmdline(const char *pid_str)
@@ -960,9 +978,49 @@ static void run_live_mode(void)
 	restore_terminal();
 }
 
+static void print_usage(void)
+{
+	printf("Usage: proclens [OPTIONS] [PID]\n");
+	printf("\n");
+	printf("Options:\n");
+	printf("  -h, --help       Show this help message and exit\n");
+	printf("  -v, --version    Show version and exit\n");
+	printf("\n");
+	printf("Arguments:\n");
+	printf("  PID              Show one-shot process info for the given "
+	       "PID\n");
+	printf("\n");
+	printf("Live mode (no arguments):\n");
+	printf("  Auto-refreshes every 1s. Controls shown in-app:\n");
+	printf("    1  Memory section\n");
+	printf("    2  Network section\n");
+	printf("    3  Threads section\n");
+	printf("    4  I/O section\n");
+	printf("    0  Change PID\n");
+	printf("    Up/k  Older snapshot   Down/j  Newer snapshot\n");
+	printf("    f     Resume live follow\n");
+	printf("    Ctrl+C  Exit\n");
+}
+
 int main(int argc, char **argv)
 {
 	init_color_output();
+
+	if (argc > 1 &&
+	    (strcmp(argv[1], "--help") == 0 || strcmp(argv[1], "-h") == 0)) {
+		print_usage();
+		return 0;
+	}
+
+	if (argc > 1 &&
+	    (strcmp(argv[1], "--version") == 0 || strcmp(argv[1], "-v") == 0)) {
+		printf("proclens %s\n", PROCLENS_VERSION);
+		return 0;
+	}
+
+	if (ensure_root_privileges() < 0)
+		return -1;
+
 	print_logo_text();
 	if (ensure_module_loaded() < 0)
 		return -1;

@@ -37,8 +37,8 @@ jobs:
     - name: Verify build artifacts
       run: |
         ls -la build/
-        file build/elf_det.ko
-        file build/proc_elf_ctrl
+        file build/proclens_module.ko
+        file build/proclens
         echo "Build artifacts verified successfully!"
     
     - name: Upload build artifacts

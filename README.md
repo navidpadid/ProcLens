@@ -37,7 +37,7 @@
 - **Thread Information**: List all threads with TID, state, CPU usage, priority, and CPU affinity
 - **CPU Usage Tracking**: Real-time CPU percentage calculation per process and thread
 - **ELF Section Analysis**: Binary base address and section boundaries
-- **Proc Interface**: Easy access through `/proc/elf_det/`
+- **Proc Interface**: Easy access through `/proc/proclens_module/`
 - **Live Dashboard Mode**: No-arg mode refreshes every 1s with switchable Memory, Network, Threads, and I/O sections
 - **Comprehensive Testing**: Unit tests and QEMU-based E2E testing
 - **Code Quality**: Pre-configured static analysis (sparse, cppcheck, checkpatch)
@@ -62,7 +62,7 @@
    ```
 4. Run user program:
    ```bash
-   ./build/proc_elf_ctrl
+   sudo ./build/proclens
    ```
 
 ### Live Mode (No Parameters)
@@ -101,6 +101,7 @@ Running without arguments starts a live dashboard:
 sudo make uninstall
 ```
 
+
 ## Release Binaries
 
 Download prebuilt binaries from GitHub Releases:
@@ -114,20 +115,31 @@ Download prebuilt binaries from GitHub Releases:
 > If your system runs any other kernel version, build from source instead.
 
 
-After downloading, install/run with root privileges as needed:
+After downloading, the preferred installation/update path is to use the bundled installer scripts:
 
 ```bash
-sudo insmod ./elf_det.ko
-./proc_elf_ctrl
+sudo ./install.sh
+sudo proclens --version
+sudo proclens
+sudo ./uninstall.sh
+```
+
+Manual install/run is still possible if needed:
+
+```bash
+sudo insmod ./proclens_module.ko
+sudo ./proclens
 ```
 
 To unload the module:
 
 ```bash
-sudo rmmod elf_det
+sudo rmmod proclens_module
 ```
 
 More detailed information is bundled with the release packages.
+
+
 
 ## Makefile Targets
 

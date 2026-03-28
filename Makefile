@@ -1,7 +1,7 @@
 # Kernel Module and User Program Makefile
 
 # Kernel module name
-obj-m := elf_det.o
+obj-m := proclens_module.o
 
 # Kernel build directory (allow override via env: KDIR=/path make)
 KDIR ?= /lib/modules/$(shell uname -r)/build
@@ -10,13 +10,18 @@ KDIR ?= /lib/modules/$(shell uname -r)/build
 PWD := $(shell pwd)
 
 # User program
-USER_PROG := proc_elf_ctrl
+USER_PROG := proclens
 
 # Source directory
 SRC_DIR := src
 
 # Build directory for user program
 BUILD_DIR := build
+
+# Version: derived from nearest git tag; falls back to "dev" on untagged builds
+VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+CFLAGS_VERSION := -DPROCLENS_VERSION='"$(VERSION)"'
+export PROCLENS_VERSION := $(VERSION)
 
 # Static analysis tuning
 CPPCHECK_JOBS ?= $(shell nproc)
@@ -39,7 +44,7 @@ module:
 user:
 	@echo "Building user program..."
 	@mkdir -p $(BUILD_DIR)
-	gcc -Wall -o $(BUILD_DIR)/$(USER_PROG) $(SRC_DIR)/$(USER_PROG).c
+	gcc -Wall $(CFLAGS_VERSION) -o $(BUILD_DIR)/$(USER_PROG) $(SRC_DIR)/$(USER_PROG).c
 	@echo "User program built successfully!"
 
 # Build multi-threaded test program (for E2E testing)
@@ -53,23 +58,23 @@ build-multithread:
 unit:
 	@echo "Building function-level unit tests..."
 	@mkdir -p $(BUILD_DIR)
-	gcc -Wall -I$(SRC_DIR) -o $(BUILD_DIR)/elf_det_tests $(SRC_DIR)/elf_det_tests.c
-	gcc -Wall -I$(SRC_DIR) -o $(BUILD_DIR)/proc_elf_ctrl_tests $(SRC_DIR)/proc_elf_ctrl_tests.c
+	gcc -Wall -I$(SRC_DIR) $(CFLAGS_VERSION) -o $(BUILD_DIR)/proclens_module_tests $(SRC_DIR)/proclens_module_tests.c
+	gcc -Wall -I$(SRC_DIR) $(CFLAGS_VERSION) -o $(BUILD_DIR)/proclens_tests $(SRC_DIR)/proclens_tests.c
 	@echo "Running unit tests..."
-	@$(BUILD_DIR)/elf_det_tests
-	@$(BUILD_DIR)/proc_elf_ctrl_tests
+	@$(BUILD_DIR)/proclens_module_tests
+	@$(BUILD_DIR)/proclens_tests
 	@echo "All function-level unit tests passed!"
 
 # Install kernel module (requires root)
 install: module
 	@echo "Installing kernel module..."
-	sudo insmod $(BUILD_DIR)/elf_det.ko
-	@echo "Module installed. Check with: lsmod | grep elf_det"
+	sudo insmod $(BUILD_DIR)/proclens_module.ko
+	@echo "Module installed. Check with: lsmod | grep proclens_module"
 
 # Uninstall kernel module (requires root)
 uninstall:
 	@echo "Uninstalling kernel module..."
-	sudo rmmod elf_det 2>/dev/null || true
+	sudo rmmod proclens_module 2>/dev/null || true
 	@echo "Module uninstalled."
 
 # Test: install module and run user program
