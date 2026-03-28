@@ -18,6 +18,11 @@ SRC_DIR := src
 # Build directory for user program
 BUILD_DIR := build
 
+# Version: derived from nearest git tag; falls back to "dev" on untagged builds
+VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+CFLAGS_VERSION := -DPROCLENS_VERSION='"$(VERSION)"'
+export PROCLENS_VERSION := $(VERSION)
+
 # Static analysis tuning
 CPPCHECK_JOBS ?= $(shell nproc)
 CPPCHECK_SRCS := $(filter-out $(SRC_DIR)/%.mod.c, $(wildcard $(SRC_DIR)/*.c))
@@ -39,7 +44,7 @@ module:
 user:
 	@echo "Building user program..."
 	@mkdir -p $(BUILD_DIR)
-	gcc -Wall -o $(BUILD_DIR)/$(USER_PROG) $(SRC_DIR)/$(USER_PROG).c
+	gcc -Wall $(CFLAGS_VERSION) -o $(BUILD_DIR)/$(USER_PROG) $(SRC_DIR)/$(USER_PROG).c
 	@echo "User program built successfully!"
 
 # Build multi-threaded test program (for E2E testing)
@@ -53,8 +58,8 @@ build-multithread:
 unit:
 	@echo "Building function-level unit tests..."
 	@mkdir -p $(BUILD_DIR)
-	gcc -Wall -I$(SRC_DIR) -o $(BUILD_DIR)/elf_det_tests $(SRC_DIR)/elf_det_tests.c
-	gcc -Wall -I$(SRC_DIR) -o $(BUILD_DIR)/proc_elf_ctrl_tests $(SRC_DIR)/proc_elf_ctrl_tests.c
+	gcc -Wall -I$(SRC_DIR) $(CFLAGS_VERSION) -o $(BUILD_DIR)/elf_det_tests $(SRC_DIR)/elf_det_tests.c
+	gcc -Wall -I$(SRC_DIR) $(CFLAGS_VERSION) -o $(BUILD_DIR)/proc_elf_ctrl_tests $(SRC_DIR)/proc_elf_ctrl_tests.c
 	@echo "Running unit tests..."
 	@$(BUILD_DIR)/elf_det_tests
 	@$(BUILD_DIR)/proc_elf_ctrl_tests

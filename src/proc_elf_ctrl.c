@@ -9,6 +9,10 @@
 #include <time.h>
 #include "proc_elf_ctrl.h"
 
+#ifndef PROCLENS_VERSION
+#define PROCLENS_VERSION "dev"
+#endif
+
 #define C_RESET	  "\033[0m"
 #define C_BOLD	  "\033[1m"
 #define C_CYAN	  "\033[36m"
@@ -960,9 +964,46 @@ static void run_live_mode(void)
 	restore_terminal();
 }
 
+static void print_usage(void)
+{
+	printf("Usage: proc_elf_ctrl [OPTIONS] [PID]\n");
+	printf("\n");
+	printf("Options:\n");
+	printf("  -h, --help       Show this help message and exit\n");
+	printf("  -v, --version    Show version and exit\n");
+	printf("\n");
+	printf("Arguments:\n");
+	printf("  PID              Show one-shot process info for the given "
+	       "PID\n");
+	printf("\n");
+	printf("Live mode (no arguments):\n");
+	printf("  Auto-refreshes every 1s. Controls shown in-app:\n");
+	printf("    1  Memory section\n");
+	printf("    2  Network section\n");
+	printf("    3  Threads section\n");
+	printf("    4  I/O section\n");
+	printf("    0  Change PID\n");
+	printf("    Up/k  Older snapshot   Down/j  Newer snapshot\n");
+	printf("    f     Resume live follow\n");
+	printf("    Ctrl+C  Exit\n");
+}
+
 int main(int argc, char **argv)
 {
 	init_color_output();
+
+	if (argc > 1 &&
+	    (strcmp(argv[1], "--help") == 0 || strcmp(argv[1], "-h") == 0)) {
+		print_usage();
+		return 0;
+	}
+
+	if (argc > 1 &&
+	    (strcmp(argv[1], "--version") == 0 || strcmp(argv[1], "-v") == 0)) {
+		printf("proc_elf_ctrl %s\n", PROCLENS_VERSION);
+		return 0;
+	}
+
 	print_logo_text();
 	if (ensure_module_loaded() < 0)
 		return -1;

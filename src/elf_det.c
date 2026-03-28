@@ -24,7 +24,12 @@
 #include <net/inet_sock.h> //for inet_sock
 #include "elf_det.h"
 
+#ifndef PROCLENS_VERSION
+#define PROCLENS_VERSION "dev"
+#endif
+
 MODULE_LICENSE("Dual MIT/GPL"); // module license
+MODULE_VERSION(PROCLENS_VERSION);
 
 static char buff[20] =
 	"1"; // the common(global) buffer between kernel and user space
