@@ -219,6 +219,7 @@ jobs:
       - name: Build binaries for target kernel
         env:
           TARGET_ARCH: ${{ matrix.arch }}
+          RELEASE_TAG: ${{ needs.prepare_release.outputs.release_tag }}
         run: |
           set -euo pipefail
 
@@ -232,9 +233,9 @@ jobs:
 
           echo "Using kernel headers: $KDIR"
 
-          make KDIR="$KDIR" clean
-          make KDIR="$KDIR" module
-          make user
+          make KDIR="$KDIR" PROCLENS_VERSION="$RELEASE_TAG" clean
+          make KDIR="$KDIR" PROCLENS_VERSION="$RELEASE_TAG" module
+          make PROCLENS_VERSION="$RELEASE_TAG" user
 
           mkdir -p "out/${TARGET_ARCH}"
           cp build/proclens_module.ko "out/${TARGET_ARCH}/proclens_module.ko"
@@ -388,9 +389,9 @@ jobs:
 
           depmod "$KREL"
 
-          if ! modprobe proclens_module; then
-            echo "modprobe failed; trying insmod directly..."
-            insmod "$MOD_DST"
+          if ! insmod "$MOD_DST"; then
+            echo "insmod failed; trying modprobe..."
+            modprobe proclens_module
           fi
 
           echo "Install/update complete."

@@ -18,10 +18,11 @@ SRC_DIR := src
 # Build directory for user program
 BUILD_DIR := build
 
-# Version: derived from nearest git tag; falls back to "dev" on untagged builds
-VERSION := $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
-CFLAGS_VERSION := -DPROCLENS_VERSION='"$(VERSION)"'
-export PROCLENS_VERSION := $(VERSION)
+# Version: can be overridden by environment/CLI (used by release workflow).
+# Default is derived from nearest git tag; falls back to "dev".
+PROCLENS_VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
+CFLAGS_VERSION := -DPROCLENS_VERSION='"$(PROCLENS_VERSION)"'
+export PROCLENS_VERSION
 
 # Static analysis tuning
 CPPCHECK_JOBS ?= $(shell nproc)
