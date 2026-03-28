@@ -27,6 +27,7 @@ static int module_loaded;
 static int proc_pid_present;
 static int proc_det_present;
 static int proc_threads_present;
+static uid_t mock_euid;
 
 static void append_output(const char *fmt, ...)
 {
@@ -72,6 +73,7 @@ static void reset_mocks(void)
 	proc_pid_present = 1;
 	proc_det_present = 1;
 	proc_threads_present = 1;
+	mock_euid = 0;
 
 	memset(cmdline_content, 0, sizeof(cmdline_content));
 	cmdline_len = 0;
@@ -162,17 +164,24 @@ static void mock_perror(const char *s)
 	append_output("%s\n", s);
 }
 
-#define fopen  mock_fopen
-#define access mock_access
-#define printf mock_printf
-#define puts   mock_puts
-#define perror mock_perror
-#define main   proc_elf_ctrl_entry
+static uid_t mock_geteuid(void)
+{
+	return mock_euid;
+}
+
+#define fopen	mock_fopen
+#define access	mock_access
+#define geteuid mock_geteuid
+#define printf	mock_printf
+#define puts	mock_puts
+#define perror	mock_perror
+#define main	proc_elf_ctrl_entry
 #include "proc_elf_ctrl.c"
 #undef main
 #undef perror
 #undef puts
 #undef printf
+#undef geteuid
 #undef access
 #undef fopen
 
@@ -281,6 +290,20 @@ static void test_main_exits_when_proc_file_missing(void)
 
 	assert(rc == -1);
 	assert(!pid_stream_buf);
+}
+
+static void test_main_exits_without_root_privileges(void)
+{
+	static const char *const argv[] = {"prog", "1"};
+	int rc;
+
+	reset_mocks();
+	mock_euid = 1000;
+	rc = proc_elf_ctrl_entry(2, (char **)argv);
+
+	assert(rc == -1);
+	assert(!pid_stream_buf);
+	assert(!strstr(output_buf, "PROCESS INFORMATION"));
 }
 
 static void test_det_preamble_stops_before_sections(void)
@@ -456,6 +479,7 @@ int main(void)
 	test_main_argument_pid_is_bounded();
 	test_main_exits_when_module_not_loaded();
 	test_main_exits_when_proc_file_missing();
+	test_main_exits_without_root_privileges();
 	test_det_preamble_stops_before_sections();
 	test_memory_view_filters_network_section();
 	test_network_view_starts_from_network_section();

@@ -198,6 +198,17 @@ static int ensure_proc_files_present(void)
 	return 0;
 }
 
+static int ensure_root_privileges(void)
+{
+	if (geteuid() == 0)
+		return 0;
+
+	fprintf(stderr, "%serror:%s proc_elf_ctrl requires root privileges\n",
+		color_code(C_YELLOW), color_code(C_RESET));
+	fprintf(stderr, "hint: run with sudo, e.g. 'sudo proc_elf_ctrl'\n");
+	return -1;
+}
+
 static void print_cmdline(const char *pid_str)
 {
 	char path[64];
@@ -1003,6 +1014,9 @@ int main(int argc, char **argv)
 		printf("proc_elf_ctrl %s\n", PROCLENS_VERSION);
 		return 0;
 	}
+
+	if (ensure_root_privileges() < 0)
+		return -1;
 
 	print_logo_text();
 	if (ensure_module_loaded() < 0)
