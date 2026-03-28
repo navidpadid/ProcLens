@@ -9,5 +9,5 @@ unmatchedSuppression
 # Suppress preprocessor errors in kernel headers (configuration issues)
 preprocessorErrorDirective:*/linux/bitops.h
 preprocessorErrorDirective:*/linux/*.h
-noValidConfiguration:src/proclens_module.c
-noValidConfiguration:src/proclens_module.mod.c
+noValidConfiguration:src/elf_det.c
+noValidConfiguration:src/elf_det.mod.c

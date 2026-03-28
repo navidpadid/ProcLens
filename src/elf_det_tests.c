@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT
-#include "proclens_module.h"
+#include "elf_det.h"
 #include <assert.h>
 #include <limits.h>
 #include <stdio.h>
@@ -503,24 +503,21 @@ int main(void)
 	assert(len == 0);
 
 	/* top talkers ranking tests */
-	struct top_talker_entry talkers[PROCLENS_MODULE_TOP_TALKERS_MAX];
+	struct top_talker_entry talkers[ELF_DET_TOP_TALKERS_MAX];
 	int talker_len = 0;
 
 	memset(talkers, 0, sizeof(talkers));
 
-	try_insert_top_talker(talkers, &talker_len,
-			      PROCLENS_MODULE_TOP_TALKERS_MAX, 10, 2, 6, 500,
-			      500);
+	try_insert_top_talker(talkers, &talker_len, ELF_DET_TOP_TALKERS_MAX, 10,
+			      2, 6, 500, 500);
 	assert(talker_len == 1);
 	assert(talkers[0].fd == 10);
 	assert(talkers[0].total_bytes == 1000);
 
-	try_insert_top_talker(talkers, &talker_len,
-			      PROCLENS_MODULE_TOP_TALKERS_MAX, 20, 2, 6, 100,
-			      100);
-	try_insert_top_talker(talkers, &talker_len,
-			      PROCLENS_MODULE_TOP_TALKERS_MAX, 30, 1, 17, 700,
-			      500);
+	try_insert_top_talker(talkers, &talker_len, ELF_DET_TOP_TALKERS_MAX, 20,
+			      2, 6, 100, 100);
+	try_insert_top_talker(talkers, &talker_len, ELF_DET_TOP_TALKERS_MAX, 30,
+			      1, 17, 700, 500);
 	assert(talker_len == 3);
 	assert(talkers[0].fd == 30);
 	assert(talkers[0].total_bytes == 1200);
@@ -528,16 +525,15 @@ int main(void)
 	assert(talkers[2].fd == 20);
 
 	/* Replaces the current lowest-ranked entry */
-	try_insert_top_talker(talkers, &talker_len,
-			      PROCLENS_MODULE_TOP_TALKERS_MAX, 40, 10, 6, 300,
-			      300);
+	try_insert_top_talker(talkers, &talker_len, ELF_DET_TOP_TALKERS_MAX, 40,
+			      10, 6, 300, 300);
 	assert(talker_len == 3);
 	assert(talkers[2].fd == 40);
 	assert(talkers[2].total_bytes == 600);
 
 	/* Zero-traffic entries are ignored */
-	try_insert_top_talker(talkers, &talker_len,
-			      PROCLENS_MODULE_TOP_TALKERS_MAX, 50, 2, 6, 0, 0);
+	try_insert_top_talker(talkers, &talker_len, ELF_DET_TOP_TALKERS_MAX, 50,
+			      2, 6, 0, 0);
 	assert(talker_len == 3);
 	assert(talkers[0].fd == 30);
 
@@ -592,42 +588,41 @@ int main(void)
 	assert(strcmp(state_str, "UNKNOWN") == 0);
 
 	/* netdev_count tests */
-	struct netdev_count devs[PROCLENS_MODULE_NETDEV_MAX];
+	struct netdev_count devs[ELF_DET_NETDEV_MAX];
 	int dev_len = 0;
 	int start_len;
 	int i;
 
 	memset(devs, 0, sizeof(devs));
-	add_netdev_count(devs, &dev_len, PROCLENS_MODULE_NETDEV_MAX, 2, "eth0");
+	add_netdev_count(devs, &dev_len, ELF_DET_NETDEV_MAX, 2, "eth0");
 	assert(dev_len == 1);
 	assert(devs[0].ifindex == 2);
 	assert(devs[0].count == 1);
 	assert(strcmp(devs[0].name, "eth0") == 0);
 
-	add_netdev_count(devs, &dev_len, PROCLENS_MODULE_NETDEV_MAX, 2, "eth1");
+	add_netdev_count(devs, &dev_len, ELF_DET_NETDEV_MAX, 2, "eth1");
 	assert(dev_len == 1);
 	assert(devs[0].count == 2);
 	assert(strcmp(devs[0].name, "eth0") == 0);
 
-	add_netdev_count(devs, &dev_len, PROCLENS_MODULE_NETDEV_MAX, 1, "lo");
+	add_netdev_count(devs, &dev_len, ELF_DET_NETDEV_MAX, 1, "lo");
 	assert(dev_len == 2);
 	assert(devs[1].ifindex == 1);
 	assert(devs[1].count == 1);
 	assert(strcmp(devs[1].name, "lo") == 0);
 
 	start_len = dev_len;
-	for (i = start_len; i < PROCLENS_MODULE_NETDEV_MAX; i++) {
+	for (i = start_len; i < ELF_DET_NETDEV_MAX; i++) {
 		char name_buf[16];
 
 		snprintf(name_buf, sizeof(name_buf), "d%d", i);
-		add_netdev_count(devs, &dev_len, PROCLENS_MODULE_NETDEV_MAX,
-				 100 + i, name_buf);
+		add_netdev_count(devs, &dev_len, ELF_DET_NETDEV_MAX, 100 + i,
+				 name_buf);
 	}
-	assert(dev_len == PROCLENS_MODULE_NETDEV_MAX);
+	assert(dev_len == ELF_DET_NETDEV_MAX);
 
-	add_netdev_count(devs, &dev_len, PROCLENS_MODULE_NETDEV_MAX, 999,
-			 "extra");
-	assert(dev_len == PROCLENS_MODULE_NETDEV_MAX);
+	add_netdev_count(devs, &dev_len, ELF_DET_NETDEV_MAX, 999, "extra");
+	assert(dev_len == ELF_DET_NETDEV_MAX);
 
 	/* procfile write/read logic tests */
 	{

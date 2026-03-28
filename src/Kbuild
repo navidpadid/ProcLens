@@ -1,2 +1,1 @@
-obj-m := proclens_module.o
-ccflags-y += -DPROCLENS_VERSION='"$(PROCLENS_VERSION)"'
+obj-m := elf_det.o

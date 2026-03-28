@@ -70,8 +70,8 @@ echo ""
 echo "2. Copying files to QEMU VM..."
 ssh $SSH_OPTS ${SSH_USER}@${SSH_HOST} "mkdir -p ~/ProcLens"
 ssh $SSH_OPTS ${SSH_USER}@${SSH_HOST} "mkdir -p ~/ProcLens/src"
-scp $SCP_OPTS src/proclens_module.c src/proclens_module.h src/proclens_module_tests.c \
-    src/proclens.c src/proclens.h src/proclens_tests.c \
+scp $SCP_OPTS src/elf_det.c src/elf_det.h src/elf_det_tests.c \
+    src/proc_elf_ctrl.c src/proc_elf_ctrl.h src/proc_elf_ctrl_tests.c \
     src/test_multithread.c src/Kbuild ${SSH_USER}@${SSH_HOST}:~/ProcLens/src/
 scp $SCP_OPTS Makefile ${SSH_USER}@${SSH_HOST}:~/ProcLens/
 
@@ -99,23 +99,23 @@ make KDIR=/lib/modules/$(uname -r)/build all
 make build-multithread
 
 echo "Installing kernel module..."
-if lsmod | grep -q '^proclens_module'; then
+if lsmod | grep -q '^elf_det'; then
     echo "Module already loaded; unloading first..."
-    sudo rmmod proclens_module || true
+    sudo rmmod elf_det || true
 fi
-sudo insmod build/proclens_module.ko
+sudo insmod build/elf_det.ko
 
 echo "Checking if module is loaded..."
-lsmod | grep proclens_module
+lsmod | grep elf_det
 
 echo "Checking /proc entries..."
-ls -la /proc/proclens_module/
+ls -la /proc/elf_det/
 echo "Expected files: det, pid, threads"
 
 echo ""
 echo "=== Testing Process Information (PID: $$) ==="
-echo "$$" | sudo tee /proc/proclens_module/pid > /dev/null
-PROC_OUT=$(sudo cat /proc/proclens_module/det)
+echo "$$" | sudo tee /proc/elf_det/pid > /dev/null
+PROC_OUT=$(sudo cat /proc/elf_det/det)
 echo "$PROC_OUT"
 if ! echo "$PROC_OUT" | grep -q "Memory Pressure Statistics"; then
     echo "[FAIL] Memory pressure stats missing for PID $$"
@@ -167,13 +167,13 @@ fi
 
 echo ""
 echo "=== Testing Thread Information (PID: $$) ==="
-sudo cat /proc/proclens_module/threads
+sudo cat /proc/elf_det/threads
 
 echo ""
 echo "=== Testing with PID 1 (init/systemd) ==="
-echo "1" | sudo tee /proc/proclens_module/pid > /dev/null
+echo "1" | sudo tee /proc/elf_det/pid > /dev/null
 echo "Process info:"
-PROC_OUT=$(sudo cat /proc/proclens_module/det)
+PROC_OUT=$(sudo cat /proc/elf_det/det)
 echo "$PROC_OUT"
 if ! echo "$PROC_OUT" | grep -q "Memory Pressure Statistics"; then
     echo "[FAIL] Memory pressure stats missing for PID 1"
@@ -224,11 +224,11 @@ if ! echo "$PROC_OUT" | grep -q "No open sockets"; then
 fi
 echo ""
 echo "Thread info:"
-sudo cat /proc/proclens_module/threads
+sudo cat /proc/elf_det/threads
 
 echo ""
-echo "=== Testing with user program (proclens, PID=1) ==="
-sudo ./build/proclens 1 || true
+echo "=== Testing with user program (proc_elf_ctrl, PID=1) ==="
+sudo ./build/proc_elf_ctrl 1 || true
 
 echo ""
 echo "=== Testing with multi-threaded application ==="
@@ -243,10 +243,10 @@ sleep 1
 # Test with the multi-threaded process
 echo ""
 echo "Testing thread detection with multi-threaded process:"
-echo "$MULTITHREAD_PID" | sudo tee /proc/proclens_module/pid > /dev/null
+echo "$MULTITHREAD_PID" | sudo tee /proc/elf_det/pid > /dev/null
 echo ""
 echo "Process info:"
-PROC_OUT=$(sudo cat /proc/proclens_module/det)
+PROC_OUT=$(sudo cat /proc/elf_det/det)
 echo "$PROC_OUT"
 if ! echo "$PROC_OUT" | grep -q "Memory Pressure Statistics"; then
     echo "[FAIL] Memory pressure stats missing for PID $MULTITHREAD_PID"
@@ -297,14 +297,14 @@ if ! echo "$PROC_OUT" | grep -q "No open sockets"; then
 fi
 echo ""
 echo "Thread info (should show 5 threads: 1 main + 4 workers):"
-sudo cat /proc/proclens_module/threads
+sudo cat /proc/elf_det/threads
 
 sleep 1
 
 # Use the user program to display formatted output
 echo ""
-echo "Using proclens with multi-threaded process:"
-sudo ./build/proclens $MULTITHREAD_PID || true
+echo "Using proc_elf_ctrl with multi-threaded process:"
+sudo ./build/proc_elf_ctrl $MULTITHREAD_PID || true
 
 # Wait for multi-threaded program to finish
 wait $MULTITHREAD_PID
@@ -313,7 +313,7 @@ echo "[PASS] Multi-threaded application test completed"
 
 echo ""
 echo "=== Verifying all proc files are accessible ==="
-if [ -r /proc/proclens_module/det ] && [ -r /proc/proclens_module/pid ] && [ -r /proc/proclens_module/threads ]; then
+if [ -r /proc/elf_det/det ] && [ -r /proc/elf_det/pid ] && [ -r /proc/elf_det/threads ]; then
     echo "[PASS] All proc files exist and are readable"
 else
     echo "[FAIL] Some proc files are missing or not readable"
@@ -326,11 +326,11 @@ sudo dmesg | tail -20
 
 echo ""
 echo "Uninstalling module..."
-sudo rmmod proclens_module
+sudo rmmod elf_det
 
 echo ""
 echo "Verifying module unloaded..."
-lsmod | grep proclens_module || echo "Module successfully unloaded"
+lsmod | grep elf_det || echo "Module successfully unloaded"
 
 echo ""
 echo "==================================================="

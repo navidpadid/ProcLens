@@ -29,7 +29,8 @@ modules.order
 *.dSYM/
 
 # Compiled user programs
-proclens
+proc_elf_ctrl
+elf_det_ctrl
 
 # Core dumps
 core

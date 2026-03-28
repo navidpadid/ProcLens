@@ -9,8 +9,8 @@ make unit
 ```
 
 This builds and runs:
-- `src/proclens_module_tests.c` – verifies `compute_usage_permyriad()`, `compute_bss_range()`, `compute_heap_range()`, `is_address_in_range()`, `get_thread_state_char()`, `build_cpu_affinity_string()`, and memory-pressure helpers
-- `src/proclens_tests.c` – verifies `build_proc_path()`, PID argument bounds,
+- `src/elf_det_tests.c` – verifies `compute_usage_permyriad()`, `compute_bss_range()`, `compute_heap_range()`, `is_address_in_range()`, `get_thread_state_char()`, `build_cpu_affinity_string()`, and memory-pressure helpers
+- `src/proc_elf_ctrl_tests.c` – verifies `build_proc_path()`, PID argument bounds,
     process-info print path, cmdline formatting, and section filtering for memory/network/I/O live views
 
 Artifacts are created under `build/`.
@@ -54,7 +54,7 @@ ssh -p 2222 ubuntu@localhost
 cd ProcLens
 make clean && make all
 sudo make install
-./build/proclens
+./build/proc_elf_ctrl
 
 # Multi-threaded module test
 make run-multithread
@@ -132,27 +132,27 @@ sudo ./e2e/qemu-test.sh
 
 ```bash
 # Ensure module is loaded
-lsmod | grep proclens_module
+lsmod | grep elf_det
 
 # Check proc entries exist (should show det, pid, threads)
-ls -la /proc/proclens_module/
+ls -la /proc/elf_det/
 ```
 
 ### Testing Thread Information
 
 ```bash
 # Test with single-threaded process
-./build/proclens $$
+./build/proc_elf_ctrl $$
 
 # Test with multi-threaded process
 # Start the bundled multi-threaded test program
 make build-multithread
 ./build/test_multithread &
-./build/proclens $!
+./build/proc_elf_ctrl $!
 
 # Manually check thread info
-echo "<PID>" | sudo tee /proc/proclens_module/pid
-sudo cat /proc/proclens_module/threads
+echo "<PID>" | sudo tee /proc/elf_det/pid
+sudo cat /proc/elf_det/threads
 ```
 
 ### Verify Thread Features
@@ -173,12 +173,12 @@ Multi-threaded processes (browsers, IDEs, servers) will show multiple threads.
 Verify no-argument live mode behavior:
 
 ```bash
-./build/proclens
+./build/proc_elf_ctrl
 ```
 
 Expected behavior:
 - Program prints the startup logo once, then validates module/proc readiness
-- If `proclens_module` is not loaded, program exits immediately with status `-1`
+- If `elf_det` is not loaded, program exits immediately with status `-1`
 - If required proc files are missing (`pid`, `det`, `threads`), program exits immediately with status `-1`
 - Screen refreshes every 1 second
 - Header shows controls (`1` memory, `2` network, `3` threads, `4` I/O, `0` switch PID)
@@ -201,7 +201,7 @@ mkdir -p /tmp/fake_proc
 : > /tmp/fake_proc/pid
 printf 'Memory Pressure Statistics:\n[network]\nsockets_total: 2\n' > /tmp/fake_proc/det
 printf 'tid header\nthread line\n' > /tmp/fake_proc/threads
-PROCLENS_PROC_DIR=/tmp/fake_proc ./build/proclens
+ELF_DET_PROC_DIR=/tmp/fake_proc ./build/proc_elf_ctrl
 ```
 ### Testing Socket Information
 
@@ -209,13 +209,13 @@ To verify socket functionality, test with processes that have open sockets:
 
 ```bash
 # Test with systemd (PID 1) - usually has several sockets
-./build/proclens 1
+./build/proc_elf_ctrl 1
 
 # Test with SSH daemon
-pgrep sshd | head -1 | xargs ./build/proclens
+pgrep sshd | head -1 | xargs ./build/proc_elf_ctrl
 
 # Test with current shell (will show SSH connection socket if remote)
-./build/proclens $$
+./build/proc_elf_ctrl $$
 ```
 
 The socket output should include:
@@ -235,7 +235,7 @@ Processes with no open sockets will display "No open sockets".
 The process output should include a short network section when sockets exist:
 
 ```bash
-./build/proclens $$
+./build/proc_elf_ctrl $$
 ```
 
 Look for:
@@ -262,7 +262,7 @@ In the open sockets section:
 The process output should include an I/O section:
 
 ```bash
-./build/proclens $$
+./build/proc_elf_ctrl $$
 ```
 
 Look for:
@@ -277,7 +277,7 @@ the section will show `status: unavailable` instead of per-field counters.
 
 ## Test Coverage
 
-### Helper Function Tests (`proclens_module_tests.c`)
+### Helper Function Tests (`elf_det_tests.c`)
 
 Complete unit test coverage for all pure helper functions:
 
