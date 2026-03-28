@@ -50,8 +50,8 @@ You can manually trigger a release from the GitHub Actions tab:
 	- For PR releases, notes include a `Changelog` section with PR title/body
 	- Notes include version/type metadata
 	- Notes include a `Binary package includes` section summarizing packaged contents and quick-start commands
-3. **Binary Builds**: Builds `proclens_module.ko` and `proclens` for both `amd64` and `arm64`
-4. **Packaging**: Produces a bundled archive named `proclens_module-binaries-vX.Y.Z-linux-6.8.0.tar.gz` plus a `.sha256` checksum file
+3. **Binary Builds**: Builds `elf_det.ko` and `proc_elf_ctrl` for both `amd64` and `arm64`
+4. **Packaging**: Produces a bundled archive named `elf_det-binaries-vX.Y.Z-linux-6.8.0.tar.gz` plus a `.sha256` checksum file
 5. **Git Tag Creation**: Creates an annotated git tag (e.g., `v1.4.0`) if it does not already exist
 6. **GitHub Release**: Creates a release on GitHub using the generated release notes and uploads the archive + checksum
 
@@ -74,7 +74,7 @@ MAJOR.MINOR.PATCH
 
 **Use MAJOR version when:**
 - Changing kernel module API
-- Removing features or fields from /proc/proclens_module/
+- Removing features or fields from /proc/elf_det/
 - Incompatible changes to output format
 
 **Use MINOR version when:**

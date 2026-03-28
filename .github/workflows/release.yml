@@ -147,19 +147,17 @@ jobs:
               printf '\n---\n'
               printf '**Version**: %s | **Type**: %s\n\n' "$VERSION" "$BUMP_TYPE"
               printf '## Binary package includes\n\n'
-              printf -- '- `amd64/proclens_module.ko`\n'
-              printf -- '- `amd64/proclens`\n'
-              printf -- '- `arm64/proclens_module.ko`\n'
-              printf -- '- `arm64/proclens`\n'
-              printf -- '- `install.sh`\n'
-              printf -- '- `uninstall.sh`\n'
+              printf -- '- `amd64/elf_det.ko`\n'
+              printf -- '- `amd64/proc_elf_ctrl`\n'
+              printf -- '- `arm64/elf_det.ko`\n'
+              printf -- '- `arm64/proc_elf_ctrl`\n'
               printf -- '- `README-QUICKSTART.md`\n\n'
               printf 'Quick Start summary:\n\n'
               printf -- '- Supports Linux kernel `%s.x`\n' "${TARGET_KERNEL_BASE}"
               printf -- '- Includes binaries for `amd64` (`x86_64`) and `arm64` (`aarch64`)\n'
-              printf -- '- Install or update: `sudo ./install.sh`\n'
-              printf -- '- Run user tool: `sudo proclens`\n'
-              printf -- '- Uninstall: `sudo ./uninstall.sh`\n'
+              printf -- '- Install module: `sudo insmod <arch>/elf_det.ko`\n'
+              printf -- '- Run user tool: `sudo ./<arch>/proc_elf_ctrl`\n'
+              printf -- '- Unload module: `sudo rmmod elf_det`\n'
             } > /tmp/release_notes.md
           else
             # Manual workflow dispatch
@@ -168,19 +166,17 @@ jobs:
               printf -- '- Manual release triggered via workflow dispatch.\n\n'
               printf '**Version**: %s | **Type**: %s\n\n' "$VERSION" "$BUMP_TYPE"
               printf '## Binary package includes\n\n'
-              printf -- '- `amd64/proclens_module.ko`\n'
-              printf -- '- `amd64/proclens`\n'
-              printf -- '- `arm64/proclens_module.ko`\n'
-              printf -- '- `arm64/proclens`\n'
-              printf -- '- `install.sh`\n'
-              printf -- '- `uninstall.sh`\n'
+              printf -- '- `amd64/elf_det.ko`\n'
+              printf -- '- `amd64/proc_elf_ctrl`\n'
+              printf -- '- `arm64/elf_det.ko`\n'
+              printf -- '- `arm64/proc_elf_ctrl`\n'
               printf -- '- `README-QUICKSTART.md`\n\n'
               printf 'Quick Start summary:\n\n'
               printf -- '- Supports Linux kernel `%s.x`\n' "${TARGET_KERNEL_BASE}"
               printf -- '- Includes binaries for `amd64` (`x86_64`) and `arm64` (`aarch64`)\n'
-              printf -- '- Install or update: `sudo ./install.sh`\n'
-              printf -- '- Run user tool: `sudo proclens`\n'
-              printf -- '- Uninstall: `sudo ./uninstall.sh`\n'
+              printf -- '- Install module: `sudo insmod <arch>/elf_det.ko`\n'
+              printf -- '- Run user tool: `sudo ./<arch>/proc_elf_ctrl`\n'
+              printf -- '- Unload module: `sudo rmmod elf_det`\n'
             } > /tmp/release_notes.md
           fi
           
@@ -237,8 +233,8 @@ jobs:
           make user
 
           mkdir -p "out/${TARGET_ARCH}"
-          cp build/proclens_module.ko "out/${TARGET_ARCH}/proclens_module.ko"
-          cp build/proclens "out/${TARGET_ARCH}/proclens"
+          cp build/elf_det.ko "out/${TARGET_ARCH}/elf_det.ko"
+          cp build/proc_elf_ctrl "out/${TARGET_ARCH}/proc_elf_ctrl"
 
       - name: Upload architecture binaries
         uses: actions/upload-artifact@v4
@@ -280,152 +276,18 @@ jobs:
         run: |
           set -euo pipefail
 
-          PKG_NAME="proclens_module-binaries-${RELEASE_TAG}-linux-${TARGET_KERNEL_BASE}"
+          PKG_NAME="elf_det-binaries-${RELEASE_TAG}-linux-${TARGET_KERNEL_BASE}"
           PKG_DIR="dist/${PKG_NAME}"
           ARCHIVE_PATH="dist/${PKG_NAME}.tar.gz"
 
           mkdir -p "$PKG_DIR/amd64" "$PKG_DIR/arm64"
 
-          cp dist/artifacts/binaries-amd64/proclens_module.ko "$PKG_DIR/amd64/"
-          cp dist/artifacts/binaries-amd64/proclens "$PKG_DIR/amd64/"
-          cp dist/artifacts/binaries-arm64/proclens_module.ko "$PKG_DIR/arm64/"
-          cp dist/artifacts/binaries-arm64/proclens "$PKG_DIR/arm64/"
+          cp dist/artifacts/binaries-amd64/elf_det.ko "$PKG_DIR/amd64/"
+          cp dist/artifacts/binaries-amd64/proc_elf_ctrl "$PKG_DIR/amd64/"
+          cp dist/artifacts/binaries-arm64/elf_det.ko "$PKG_DIR/arm64/"
+          cp dist/artifacts/binaries-arm64/proc_elf_ctrl "$PKG_DIR/arm64/"
 
-          chmod +x "$PKG_DIR/amd64/proclens" "$PKG_DIR/arm64/proclens"
-
-          cat > "$PKG_DIR/install.sh" << 'EOF'
-          #!/usr/bin/env bash
-          set -euo pipefail
-
-          usage() {
-            cat << 'USAGE'
-          Usage: sudo ./install.sh [--arch amd64|arm64]
-
-          Installs or updates both components:
-            - Kernel module: /lib/modules/$(uname -r)/extra/proclens_module.ko
-            - User binary:   /usr/local/bin/proclens
-
-          Behavior:
-            - Detects architecture automatically (x86_64 -> amd64, aarch64 -> arm64)
-            - If module is already loaded, unloads it first
-            - Replaces previously installed binaries (update-in-place)
-            - Runs depmod and loads module with modprobe (fallback: insmod)
-          USAGE
-          }
-
-          if [[ "${EUID}" -ne 0 ]]; then
-            echo "Please run as root: sudo ./install.sh"
-            exit 1
-          fi
-
-          SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-          ARCH=""
-          if [[ $# -gt 0 ]]; then
-            case "$1" in
-              --arch)
-                ARCH="${2:-}"
-                shift 2
-                ;;
-              -h|--help)
-                usage
-                exit 0
-                ;;
-              *)
-                echo "Unknown option: $1"
-                usage
-                exit 1
-                ;;
-            esac
-          fi
-
-          if [[ -z "$ARCH" ]]; then
-            case "$(uname -m)" in
-              x86_64)
-                ARCH="amd64"
-                ;;
-              aarch64|arm64)
-                ARCH="arm64"
-                ;;
-              *)
-                echo "Unsupported architecture: $(uname -m)"
-                echo "Use --arch amd64|arm64"
-                exit 1
-                ;;
-            esac
-          fi
-
-          if [[ "$ARCH" != "amd64" && "$ARCH" != "arm64" ]]; then
-            echo "Invalid --arch value: $ARCH"
-            echo "Use amd64 or arm64"
-            exit 1
-          fi
-
-          SRC_MOD="$SCRIPT_DIR/$ARCH/proclens_module.ko"
-          SRC_BIN="$SCRIPT_DIR/$ARCH/proclens"
-
-          if [[ ! -f "$SRC_MOD" || ! -f "$SRC_BIN" ]]; then
-            echo "Missing release binaries for arch '$ARCH'"
-            exit 1
-          fi
-
-          KREL="$(uname -r)"
-          MOD_DIR="/lib/modules/$KREL/extra"
-          MOD_DST="$MOD_DIR/proclens_module.ko"
-          BIN_DST="/usr/local/bin/proclens"
-
-          echo "Installing ProcLens binaries for arch: $ARCH"
-          echo "Kernel release: $KREL"
-
-          if lsmod | grep -q '^proclens_module '; then
-            echo "Module is currently loaded; unloading old version..."
-            modprobe -r proclens_module || rmmod proclens_module
-          fi
-
-          mkdir -p "$MOD_DIR"
-          install -m 0644 "$SRC_MOD" "$MOD_DST"
-          install -m 0755 "$SRC_BIN" "$BIN_DST"
-
-          depmod "$KREL"
-
-          if ! modprobe proclens_module; then
-            echo "modprobe failed; trying insmod directly..."
-            insmod "$MOD_DST"
-          fi
-
-          echo "Install/update complete."
-          echo "User binary: $BIN_DST"
-          echo "Module file: $MOD_DST"
-          echo "Check module version: cat /sys/module/proclens_module/version"
-          echo "Check user version:   sudo proclens --version"
-          EOF
-
-          cat > "$PKG_DIR/uninstall.sh" << 'EOF'
-          #!/usr/bin/env bash
-          set -euo pipefail
-
-          if [[ "${EUID}" -ne 0 ]]; then
-            echo "Please run as root: sudo ./uninstall.sh"
-            exit 1
-          fi
-
-          KREL="$(uname -r)"
-          MOD_DST="/lib/modules/$KREL/extra/proclens_module.ko"
-          BIN_DST="/usr/local/bin/proclens"
-
-          if lsmod | grep -q '^proclens_module '; then
-            echo "Unloading proclens_module module..."
-            modprobe -r proclens_module || rmmod proclens_module || true
-          fi
-
-          rm -f "$MOD_DST"
-          rm -f "$BIN_DST"
-          depmod "$KREL"
-
-          echo "Uninstall complete."
-          EOF
-
-          chmod +x "$PKG_DIR/install.sh" "$PKG_DIR/uninstall.sh"
+          chmod +x "$PKG_DIR/amd64/proc_elf_ctrl" "$PKG_DIR/arm64/proc_elf_ctrl"
 
           cat > "$PKG_DIR/README-QUICKSTART.md" << 'EOF'
           # Quick Start (Linux kernel __TARGET_KERNEL_BASE__.x)
@@ -448,24 +310,11 @@ jobs:
           - `amd64/` for `x86_64`
           - `arm64/` for `aarch64`
 
-          ## 2) Install or update
+          ## 2) Install kernel module
 
           ```bash
-          sudo ./install.sh
-          ```
-
-          The installer:
-          - Installs/updates `proclens` to `/usr/local/bin/proclens`
-          - Installs/updates `proclens_module.ko` to `/lib/modules/$(uname -r)/extra/proclens_module.ko`
-          - Unloads an already-loaded `proclens_module` before update
-          - Runs `depmod` and loads the module
-
-          Optional (override architecture selection):
-
-          ```bash
-          sudo ./install.sh --arch amd64
-          # or
-          sudo ./install.sh --arch arm64
+          sudo insmod <arch>/elf_det.ko
+          lsmod | grep elf_det
           ```
 
           If Secure Boot is enabled, module signing may be required.
@@ -473,14 +322,13 @@ jobs:
           ## 3) Run user program
 
           ```bash
-          sudo proclens --version
-          sudo proclens
+          sudo ./<arch>/proc_elf_ctrl
           ```
 
-          ## 4) Uninstall
+          ## 4) Unload module
 
           ```bash
-          sudo ./uninstall.sh
+          sudo rmmod elf_det
           ```
           EOF
 

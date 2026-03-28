@@ -211,14 +211,14 @@ struct memory_region {
 	int exists; /* 1 if region should be displayed, 0 otherwise */
 };
 
-#define PROCLENS_MODULE_NETDEV_MAX	8
-#define PROCLENS_MODULE_NETDEV_NAME_MAX IFNAMSIZ
-#define PROCLENS_MODULE_TOP_TALKERS_MAX 3
+#define ELF_DET_NETDEV_MAX	8
+#define ELF_DET_NETDEV_NAME_MAX IFNAMSIZ
+#define ELF_DET_TOP_TALKERS_MAX 3
 
 struct netdev_count {
 	int ifindex;
 	int count;
-	char name[PROCLENS_MODULE_NETDEV_NAME_MAX];
+	char name[ELF_DET_NETDEV_NAME_MAX];
 };
 
 struct top_talker_entry {
