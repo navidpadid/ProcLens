@@ -62,7 +62,7 @@
    ```
 4. Run user program:
    ```bash
-   ./build/proclens
+   sudo ./build/proclens
    ```
 
 ### Live Mode (No Parameters)
@@ -101,6 +101,7 @@ Running without arguments starts a live dashboard:
 sudo make uninstall
 ```
 
+
 ## Release Binaries
 
 Download prebuilt binaries from GitHub Releases:
@@ -114,11 +115,20 @@ Download prebuilt binaries from GitHub Releases:
 > If your system runs any other kernel version, build from source instead.
 
 
-After downloading, install/run with root privileges as needed:
+After downloading, the preferred installation/update path is to use the bundled installer scripts:
+
+```bash
+sudo ./install.sh
+sudo proclens --version
+sudo proclens
+sudo ./uninstall.sh
+```
+
+Manual install/run is still possible if needed:
 
 ```bash
 sudo insmod ./proclens_module.ko
-./proclens
+sudo ./proclens
 ```
 
 To unload the module:
@@ -128,6 +138,8 @@ sudo rmmod proclens_module
 ```
 
 More detailed information is bundled with the release packages.
+
+
 
 ## Makefile Targets
 

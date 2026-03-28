@@ -158,7 +158,7 @@ jobs:
               printf -- '- Supports Linux kernel `%s.x`\n' "${TARGET_KERNEL_BASE}"
               printf -- '- Includes binaries for `amd64` (`x86_64`) and `arm64` (`aarch64`)\n'
               printf -- '- Install or update: `sudo ./install.sh`\n'
-              printf -- '- Run user tool: `proclens` (or `sudo proclens`)\n'
+              printf -- '- Run user tool: `sudo proclens`\n'
               printf -- '- Uninstall: `sudo ./uninstall.sh`\n'
             } > /tmp/release_notes.md
           else
@@ -179,7 +179,7 @@ jobs:
               printf -- '- Supports Linux kernel `%s.x`\n' "${TARGET_KERNEL_BASE}"
               printf -- '- Includes binaries for `amd64` (`x86_64`) and `arm64` (`aarch64`)\n'
               printf -- '- Install or update: `sudo ./install.sh`\n'
-              printf -- '- Run user tool: `proclens` (or `sudo proclens`)\n'
+              printf -- '- Run user tool: `sudo proclens`\n'
               printf -- '- Uninstall: `sudo ./uninstall.sh`\n'
             } > /tmp/release_notes.md
           fi
@@ -397,7 +397,7 @@ jobs:
           echo "User binary: $BIN_DST"
           echo "Module file: $MOD_DST"
           echo "Check module version: cat /sys/module/proclens_module/version"
-          echo "Check user version:   proclens --version"
+          echo "Check user version:   sudo proclens --version"
           EOF
 
           cat > "$PKG_DIR/uninstall.sh" << 'EOF'
@@ -473,8 +473,8 @@ jobs:
           ## 3) Run user program
 
           ```bash
-          proclens --version
-          proclens
+          sudo proclens --version
+          sudo proclens
           ```
 
           ## 4) Uninstall
