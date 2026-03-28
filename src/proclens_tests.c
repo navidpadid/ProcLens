@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: MIT
 #define _GNU_SOURCE
-#include "proc_elf_ctrl.h"
+#include "proclens.h"
 #include <assert.h>
 #include <ctype.h>
 #include <stdarg.h>
@@ -77,7 +77,7 @@ static void reset_mocks(void)
 
 	memset(cmdline_content, 0, sizeof(cmdline_content));
 	cmdline_len = 0;
-	setenv("ELF_DET_PROC_DIR", "/fake_proc", 1);
+	setenv("PROCLENS_PROC_DIR", "/fake_proc", 1);
 }
 
 static FILE *mock_fopen(const char *path, const char *mode)
@@ -114,8 +114,10 @@ static FILE *mock_fopen(const char *path, const char *mode)
 
 	if (!strcmp(path, "/proc/modules") && strchr(mode, 'r')) {
 		if (module_loaded)
-			return fmemopen((void *)"elf_det 0 0 - Live 0x0\n", 23,
-					"r");
+			return fmemopen(
+				(void *)"proclens_module 0 0 - Live 0x0\n",
+				strlen("proclens_module 0 0 - Live 0x0\n"),
+				"r");
 
 		return fmemopen((void *)"", 0, "r");
 	}
@@ -175,8 +177,8 @@ static uid_t mock_geteuid(void)
 #define printf	mock_printf
 #define puts	mock_puts
 #define perror	mock_perror
-#define main	proc_elf_ctrl_entry
-#include "proc_elf_ctrl.c"
+#define main	proclens_entry
+#include "proclens.c"
 #undef main
 #undef perror
 #undef puts
@@ -190,12 +192,12 @@ static void test_build_proc_path_helper(void)
 	char *p1;
 	char *p2;
 
-	unsetenv("ELF_DET_PROC_DIR");
+	unsetenv("PROCLENS_PROC_DIR");
 	p1 = build_proc_path("pid");
-	assert(p1 && strcmp(p1, "/proc/elf_det/pid") == 0);
+	assert(p1 && strcmp(p1, "/proc/proclens_module/pid") == 0);
 	free(p1);
 
-	setenv("ELF_DET_PROC_DIR", "/tmp/fakeproc", 1);
+	setenv("PROCLENS_PROC_DIR", "/tmp/fakeproc", 1);
 	p2 = build_proc_path("det");
 	assert(p2 && strcmp(p2, "/tmp/fakeproc/det") == 0);
 	free(p2);
@@ -258,7 +260,7 @@ static void test_main_argument_pid_is_bounded(void)
 
 	reset_mocks();
 	cmdline_len = 0;
-	rc = proc_elf_ctrl_entry(2, (char **)argv);
+	rc = proclens_entry(2, (char **)argv);
 
 	assert(rc == 0);
 	assert(pid_stream_buf);
@@ -273,7 +275,7 @@ static void test_main_exits_when_module_not_loaded(void)
 
 	reset_mocks();
 	module_loaded = 0;
-	rc = proc_elf_ctrl_entry(2, (char **)argv);
+	rc = proclens_entry(2, (char **)argv);
 
 	assert(rc == -1);
 	assert(!pid_stream_buf);
@@ -286,7 +288,7 @@ static void test_main_exits_when_proc_file_missing(void)
 
 	reset_mocks();
 	proc_threads_present = 0;
-	rc = proc_elf_ctrl_entry(2, (char **)argv);
+	rc = proclens_entry(2, (char **)argv);
 
 	assert(rc == -1);
 	assert(!pid_stream_buf);
@@ -299,7 +301,7 @@ static void test_main_exits_without_root_privileges(void)
 
 	reset_mocks();
 	mock_euid = 1000;
-	rc = proc_elf_ctrl_entry(2, (char **)argv);
+	rc = proclens_entry(2, (char **)argv);
 
 	assert(rc == -1);
 	assert(!pid_stream_buf);
@@ -487,7 +489,7 @@ int main(void)
 	test_format_current_time_layout();
 	test_live_header_and_footer_show_timestamps();
 	test_snapshot_history_offset_navigation();
-	puts("proc_elf_ctrl tests passed");
+	puts("proclens tests passed");
 	reset_mocks();
 	return 0;
 }

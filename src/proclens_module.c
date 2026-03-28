@@ -22,7 +22,7 @@
 #include <linux/in.h> //for sockaddr_in
 #include <linux/in6.h> //for sockaddr_in6
 #include <net/inet_sock.h> //for inet_sock
-#include "elf_det.h"
+#include "proclens_module.h"
 
 #ifndef PROCLENS_VERSION
 #define PROCLENS_VERSION "dev"
@@ -37,8 +37,8 @@ static int user_pid; // the desired pid that we get from user
 static int number_opens; // number of opens(writes) to the pid file
 
 // skip these instances (will be described bellow)
-static struct proc_dir_entry *elfdet_dir, *elfdet_det_entry, *elfdet_pid_entry,
-	*elfdet_threads_entry;
+static struct proc_dir_entry *proclens_module_dir, *proclens_module_det_entry,
+	*proclens_module_pid_entry, *proclens_module_threads_entry;
 
 static int procfile_open(struct inode *inode, struct file *file);
 static ssize_t procfile_read(struct file *, char __user *, size_t, loff_t *);
@@ -352,9 +352,9 @@ static void print_network_stats(struct seq_file *m, struct task_struct *task)
 	u64 socket_rx_bytes, socket_tx_bytes;
 	u64 drops = 0;
 	int socket_total = 0, tcp_count = 0, udp_count = 0, unix_count = 0;
-	struct netdev_count netdevs[ELF_DET_NETDEV_MAX];
+	struct netdev_count netdevs[PROCLENS_MODULE_NETDEV_MAX];
 	int netdev_len = 0;
-	struct top_talker_entry top_talkers[ELF_DET_TOP_TALKERS_MAX];
+	struct top_talker_entry top_talkers[PROCLENS_MODULE_TOP_TALKERS_MAX];
 	int top_talker_len = 0;
 	int ifindex;
 	struct net_device *dev;
@@ -411,7 +411,7 @@ static void print_network_stats(struct seq_file *m, struct task_struct *task)
 			unix_count++;
 
 		try_insert_top_talker(top_talkers, &top_talker_len,
-				      ELF_DET_TOP_TALKERS_MAX, fd,
+				      PROCLENS_MODULE_TOP_TALKERS_MAX, fd,
 				      sk->sk_family, sk->sk_protocol,
 				      socket_rx_bytes, socket_tx_bytes);
 
@@ -423,7 +423,8 @@ static void print_network_stats(struct seq_file *m, struct task_struct *task)
 			dev = dev_get_by_index_rcu(sock_net(sk), ifindex);
 			dev_name = dev ? dev->name : "unknown";
 			add_netdev_count(netdevs, &netdev_len,
-					 ELF_DET_NETDEV_MAX, ifindex, dev_name);
+					 PROCLENS_MODULE_NETDEV_MAX, ifindex,
+					 dev_name);
 		}
 	}
 
@@ -625,7 +626,7 @@ static void print_sockets(struct seq_file *m, struct task_struct *task)
 }
 
 // this function is the base function to gather information from kernel
-static int elfdet_show(struct seq_file *m, void *v)
+static int proclens_module_show(struct seq_file *m, void *v)
 {
 	struct task_struct *task;
 	unsigned long bss_start = 0, bss_end = 0;
@@ -713,7 +714,7 @@ static int elfdet_show(struct seq_file *m, void *v)
 }
 
 // this function gathers thread information from kernel
-static int elfdet_threads_show(struct seq_file *m, void *v)
+static int proclens_module_threads_show(struct seq_file *m, void *v)
 {
 	struct task_struct *task, *thread;
 	int ret, thread_count = 0;
@@ -756,28 +757,29 @@ static int elfdet_threads_show(struct seq_file *m, void *v)
 }
 
 // runs when opening file
-static int elfdet_open(struct inode *inode, struct file *file)
+static int proclens_module_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, elfdet_show, NULL); // calling elfdet_show
+	return single_open(file, proclens_module_show,
+			   NULL); // calling proclens_module_show
 }
 
 // runs when opening threads file
-static int elfdet_threads_open(struct inode *inode, struct file *file)
+static int proclens_module_threads_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, elfdet_threads_show, NULL);
+	return single_open(file, proclens_module_threads_show, NULL);
 }
 
 // file operations of det proc (using proc_ops for kernel 5.6+)
-static const struct proc_ops elfdet_det_ops = {
-	.proc_open = elfdet_open,
+static const struct proc_ops proclens_module_det_ops = {
+	.proc_open = proclens_module_open,
 	.proc_read = seq_read,
 	.proc_lseek = seq_lseek,
 	.proc_release = single_release,
 };
 
 // file operations of threads proc
-static const struct proc_ops elfdet_threads_ops = {
-	.proc_open = elfdet_threads_open,
+static const struct proc_ops proclens_module_threads_ops = {
+	.proc_open = proclens_module_threads_open,
 	.proc_read = seq_read,
 	.proc_lseek = seq_lseek,
 	.proc_release = single_release,
@@ -850,46 +852,49 @@ static const struct proc_ops write_pops = {
 	.proc_write = procfile_write, // this is the important part
 };
 
-static int elfdet_init(void)
+static int proclens_module_init(void)
 {
-	elfdet_dir = proc_mkdir("elf_det", NULL);
-	// creating the directory: elf_det in proc
+	proclens_module_dir = proc_mkdir("proclens_module", NULL);
+	// creating the directory: proclens_module in proc
 
-	if (!elfdet_dir)
+	if (!proclens_module_dir)
 		return -ENOMEM;
 
 	// 0644 means owner read/write, others read-only
-	elfdet_det_entry =
-		proc_create("det", 0644, elfdet_dir, &elfdet_det_ops);
-	// create proc file det with elfdet_det_ops
-	pr_info("det initiated; /proc/elf_det/det created\n");
-	elfdet_pid_entry = proc_create("pid", 0644, elfdet_dir, &write_pops);
+	proclens_module_det_entry = proc_create(
+		"det", 0644, proclens_module_dir, &proclens_module_det_ops);
+	// create proc file det with proclens_module_det_ops
+	pr_info("det initiated; /proc/proclens_module/det created\n");
+	proclens_module_pid_entry =
+		proc_create("pid", 0644, proclens_module_dir, &write_pops);
 	// create proc file pid with write_pops
-	pr_info("pid initiated; /proc/elf_det/pid created\n");
+	pr_info("pid initiated; /proc/proclens_module/pid created\n");
 
-	elfdet_threads_entry =
-		proc_create("threads", 0644, elfdet_dir, &elfdet_threads_ops);
-	// create proc file threads with elfdet_threads_ops
-	pr_info("threads initiated; /proc/elf_det/threads created\n");
+	proclens_module_threads_entry =
+		proc_create("threads", 0644, proclens_module_dir,
+			    &proclens_module_threads_ops);
+	// create proc file threads with proclens_module_threads_ops
+	pr_info("threads initiated; /proc/proclens_module/threads created\n");
 
-	if (!elfdet_det_entry || !elfdet_threads_entry)
+	if (!proclens_module_det_entry || !proclens_module_threads_entry)
 		return -ENOMEM;
 
 	return 0;
 }
 
 // the remove operations done by module(cleaning up)
-static void elfdet_exit(void)
+static void proclens_module_exit(void)
 {
-	proc_remove(elfdet_det_entry);
-	pr_info("elf_det exited; /proc/elf_det/det deleted\n");
-	proc_remove(elfdet_pid_entry);
-	pr_info("elf_det exited; /proc/elf_det/pid deleted\n");
-	proc_remove(elfdet_threads_entry);
-	pr_info("elf_det exited; /proc/elf_det/threads deleted\n");
-	proc_remove(elfdet_dir);
+	proc_remove(proclens_module_det_entry);
+	pr_info("proclens_module exited; /proc/proclens_module/det deleted\n");
+	proc_remove(proclens_module_pid_entry);
+	pr_info("proclens_module exited; /proc/proclens_module/pid deleted\n");
+	proc_remove(proclens_module_threads_entry);
+	pr_info("proclens_module exited; /proc/proclens_module/threads "
+		"deleted\n");
+	proc_remove(proclens_module_dir);
 }
 
 // macros for init and exit
-module_init(elfdet_init);
-module_exit(elfdet_exit);
+module_init(proclens_module_init);
+module_exit(proclens_module_exit);

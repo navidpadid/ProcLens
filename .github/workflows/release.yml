@@ -147,10 +147,10 @@ jobs:
               printf '\n---\n'
               printf '**Version**: %s | **Type**: %s\n\n' "$VERSION" "$BUMP_TYPE"
               printf '## Binary package includes\n\n'
-              printf -- '- `amd64/elf_det.ko`\n'
-              printf -- '- `amd64/proc_elf_ctrl`\n'
-              printf -- '- `arm64/elf_det.ko`\n'
-              printf -- '- `arm64/proc_elf_ctrl`\n'
+              printf -- '- `amd64/proclens_module.ko`\n'
+              printf -- '- `amd64/proclens`\n'
+              printf -- '- `arm64/proclens_module.ko`\n'
+              printf -- '- `arm64/proclens`\n'
               printf -- '- `install.sh`\n'
               printf -- '- `uninstall.sh`\n'
               printf -- '- `README-QUICKSTART.md`\n\n'
@@ -158,7 +158,7 @@ jobs:
               printf -- '- Supports Linux kernel `%s.x`\n' "${TARGET_KERNEL_BASE}"
               printf -- '- Includes binaries for `amd64` (`x86_64`) and `arm64` (`aarch64`)\n'
               printf -- '- Install or update: `sudo ./install.sh`\n'
-              printf -- '- Run user tool: `proc_elf_ctrl` (or `sudo proc_elf_ctrl`)\n'
+              printf -- '- Run user tool: `proclens` (or `sudo proclens`)\n'
               printf -- '- Uninstall: `sudo ./uninstall.sh`\n'
             } > /tmp/release_notes.md
           else
@@ -168,10 +168,10 @@ jobs:
               printf -- '- Manual release triggered via workflow dispatch.\n\n'
               printf '**Version**: %s | **Type**: %s\n\n' "$VERSION" "$BUMP_TYPE"
               printf '## Binary package includes\n\n'
-              printf -- '- `amd64/elf_det.ko`\n'
-              printf -- '- `amd64/proc_elf_ctrl`\n'
-              printf -- '- `arm64/elf_det.ko`\n'
-              printf -- '- `arm64/proc_elf_ctrl`\n'
+              printf -- '- `amd64/proclens_module.ko`\n'
+              printf -- '- `amd64/proclens`\n'
+              printf -- '- `arm64/proclens_module.ko`\n'
+              printf -- '- `arm64/proclens`\n'
               printf -- '- `install.sh`\n'
               printf -- '- `uninstall.sh`\n'
               printf -- '- `README-QUICKSTART.md`\n\n'
@@ -179,7 +179,7 @@ jobs:
               printf -- '- Supports Linux kernel `%s.x`\n' "${TARGET_KERNEL_BASE}"
               printf -- '- Includes binaries for `amd64` (`x86_64`) and `arm64` (`aarch64`)\n'
               printf -- '- Install or update: `sudo ./install.sh`\n'
-              printf -- '- Run user tool: `proc_elf_ctrl` (or `sudo proc_elf_ctrl`)\n'
+              printf -- '- Run user tool: `proclens` (or `sudo proclens`)\n'
               printf -- '- Uninstall: `sudo ./uninstall.sh`\n'
             } > /tmp/release_notes.md
           fi
@@ -237,8 +237,8 @@ jobs:
           make user
 
           mkdir -p "out/${TARGET_ARCH}"
-          cp build/elf_det.ko "out/${TARGET_ARCH}/elf_det.ko"
-          cp build/proc_elf_ctrl "out/${TARGET_ARCH}/proc_elf_ctrl"
+          cp build/proclens_module.ko "out/${TARGET_ARCH}/proclens_module.ko"
+          cp build/proclens "out/${TARGET_ARCH}/proclens"
 
       - name: Upload architecture binaries
         uses: actions/upload-artifact@v4
@@ -280,18 +280,18 @@ jobs:
         run: |
           set -euo pipefail
 
-          PKG_NAME="elf_det-binaries-${RELEASE_TAG}-linux-${TARGET_KERNEL_BASE}"
+          PKG_NAME="proclens_module-binaries-${RELEASE_TAG}-linux-${TARGET_KERNEL_BASE}"
           PKG_DIR="dist/${PKG_NAME}"
           ARCHIVE_PATH="dist/${PKG_NAME}.tar.gz"
 
           mkdir -p "$PKG_DIR/amd64" "$PKG_DIR/arm64"
 
-          cp dist/artifacts/binaries-amd64/elf_det.ko "$PKG_DIR/amd64/"
-          cp dist/artifacts/binaries-amd64/proc_elf_ctrl "$PKG_DIR/amd64/"
-          cp dist/artifacts/binaries-arm64/elf_det.ko "$PKG_DIR/arm64/"
-          cp dist/artifacts/binaries-arm64/proc_elf_ctrl "$PKG_DIR/arm64/"
+          cp dist/artifacts/binaries-amd64/proclens_module.ko "$PKG_DIR/amd64/"
+          cp dist/artifacts/binaries-amd64/proclens "$PKG_DIR/amd64/"
+          cp dist/artifacts/binaries-arm64/proclens_module.ko "$PKG_DIR/arm64/"
+          cp dist/artifacts/binaries-arm64/proclens "$PKG_DIR/arm64/"
 
-          chmod +x "$PKG_DIR/amd64/proc_elf_ctrl" "$PKG_DIR/arm64/proc_elf_ctrl"
+          chmod +x "$PKG_DIR/amd64/proclens" "$PKG_DIR/arm64/proclens"
 
           cat > "$PKG_DIR/install.sh" << 'EOF'
           #!/usr/bin/env bash
@@ -302,8 +302,8 @@ jobs:
           Usage: sudo ./install.sh [--arch amd64|arm64]
 
           Installs or updates both components:
-            - Kernel module: /lib/modules/$(uname -r)/extra/elf_det.ko
-            - User binary:   /usr/local/bin/proc_elf_ctrl
+            - Kernel module: /lib/modules/$(uname -r)/extra/proclens_module.ko
+            - User binary:   /usr/local/bin/proclens
 
           Behavior:
             - Detects architecture automatically (x86_64 -> amd64, aarch64 -> arm64)
@@ -361,8 +361,8 @@ jobs:
             exit 1
           fi
 
-          SRC_MOD="$SCRIPT_DIR/$ARCH/elf_det.ko"
-          SRC_BIN="$SCRIPT_DIR/$ARCH/proc_elf_ctrl"
+          SRC_MOD="$SCRIPT_DIR/$ARCH/proclens_module.ko"
+          SRC_BIN="$SCRIPT_DIR/$ARCH/proclens"
 
           if [[ ! -f "$SRC_MOD" || ! -f "$SRC_BIN" ]]; then
             echo "Missing release binaries for arch '$ARCH'"
@@ -371,15 +371,15 @@ jobs:
 
           KREL="$(uname -r)"
           MOD_DIR="/lib/modules/$KREL/extra"
-          MOD_DST="$MOD_DIR/elf_det.ko"
-          BIN_DST="/usr/local/bin/proc_elf_ctrl"
+          MOD_DST="$MOD_DIR/proclens_module.ko"
+          BIN_DST="/usr/local/bin/proclens"
 
           echo "Installing ProcLens binaries for arch: $ARCH"
           echo "Kernel release: $KREL"
 
-          if lsmod | grep -q '^elf_det '; then
+          if lsmod | grep -q '^proclens_module '; then
             echo "Module is currently loaded; unloading old version..."
-            modprobe -r elf_det || rmmod elf_det
+            modprobe -r proclens_module || rmmod proclens_module
           fi
 
           mkdir -p "$MOD_DIR"
@@ -388,7 +388,7 @@ jobs:
 
           depmod "$KREL"
 
-          if ! modprobe elf_det; then
+          if ! modprobe proclens_module; then
             echo "modprobe failed; trying insmod directly..."
             insmod "$MOD_DST"
           fi
@@ -396,8 +396,8 @@ jobs:
           echo "Install/update complete."
           echo "User binary: $BIN_DST"
           echo "Module file: $MOD_DST"
-          echo "Check module version: cat /sys/module/elf_det/version"
-          echo "Check user version:   proc_elf_ctrl --version"
+          echo "Check module version: cat /sys/module/proclens_module/version"
+          echo "Check user version:   proclens --version"
           EOF
 
           cat > "$PKG_DIR/uninstall.sh" << 'EOF'
@@ -410,12 +410,12 @@ jobs:
           fi
 
           KREL="$(uname -r)"
-          MOD_DST="/lib/modules/$KREL/extra/elf_det.ko"
-          BIN_DST="/usr/local/bin/proc_elf_ctrl"
+          MOD_DST="/lib/modules/$KREL/extra/proclens_module.ko"
+          BIN_DST="/usr/local/bin/proclens"
 
-          if lsmod | grep -q '^elf_det '; then
-            echo "Unloading elf_det module..."
-            modprobe -r elf_det || rmmod elf_det || true
+          if lsmod | grep -q '^proclens_module '; then
+            echo "Unloading proclens_module module..."
+            modprobe -r proclens_module || rmmod proclens_module || true
           fi
 
           rm -f "$MOD_DST"
@@ -455,9 +455,9 @@ jobs:
           ```
 
           The installer:
-          - Installs/updates `proc_elf_ctrl` to `/usr/local/bin/proc_elf_ctrl`
-          - Installs/updates `elf_det.ko` to `/lib/modules/$(uname -r)/extra/elf_det.ko`
-          - Unloads an already-loaded `elf_det` before update
+          - Installs/updates `proclens` to `/usr/local/bin/proclens`
+          - Installs/updates `proclens_module.ko` to `/lib/modules/$(uname -r)/extra/proclens_module.ko`
+          - Unloads an already-loaded `proclens_module` before update
           - Runs `depmod` and loads the module
 
           Optional (override architecture selection):
@@ -473,8 +473,8 @@ jobs:
           ## 3) Run user program
 
           ```bash
-          proc_elf_ctrl --version
-          proc_elf_ctrl
+          proclens --version
+          proclens
           ```
 
           ## 4) Uninstall

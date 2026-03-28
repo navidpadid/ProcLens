@@ -7,7 +7,7 @@
 #include <sys/select.h>
 #include <termios.h>
 #include <time.h>
-#include "proc_elf_ctrl.h"
+#include "proclens.h"
 
 #ifndef PROCLENS_VERSION
 #define PROCLENS_VERSION "dev"
@@ -147,7 +147,7 @@ static int ensure_module_loaded(void)
 {
 	int loaded;
 
-	loaded = is_module_loaded("elf_det");
+	loaded = is_module_loaded("proclens_module");
 	if (loaded < 0) {
 		perror("open /proc/modules");
 		return -1;
@@ -155,10 +155,12 @@ static int ensure_module_loaded(void)
 
 	if (loaded == 0) {
 		fprintf(stderr,
-			"%serror:%s kernel module 'elf_det' is not loaded\n",
+			"%serror:%s kernel module 'proclens_module' is not "
+			"loaded\n",
 			color_code(C_YELLOW), color_code(C_RESET));
-		fprintf(stderr, "hint: run 'sudo insmod ./build/elf_det.ko' or "
-				"'sudo make install'\n");
+		fprintf(stderr,
+			"hint: run 'sudo insmod ./build/proclens_module.ko' or "
+			"'sudo make install'\n");
 		return -1;
 	}
 
@@ -186,8 +188,9 @@ static int ensure_proc_files_present(void)
 				"%s\n",
 				color_code(C_YELLOW), color_code(C_RESET),
 				path);
-			fprintf(stderr, "hint: confirm /proc/elf_det is "
-					"mounted and initialized\n");
+			fprintf(stderr,
+				"hint: confirm /proc/proclens_module is "
+				"mounted and initialized\n");
 			free(path);
 			return -1;
 		}
@@ -203,9 +206,9 @@ static int ensure_root_privileges(void)
 	if (geteuid() == 0)
 		return 0;
 
-	fprintf(stderr, "%serror:%s proc_elf_ctrl requires root privileges\n",
+	fprintf(stderr, "%serror:%s proclens requires root privileges\n",
 		color_code(C_YELLOW), color_code(C_RESET));
-	fprintf(stderr, "hint: run with sudo, e.g. 'sudo proc_elf_ctrl'\n");
+	fprintf(stderr, "hint: run with sudo, e.g. 'sudo proclens'\n");
 	return -1;
 }
 
@@ -977,7 +980,7 @@ static void run_live_mode(void)
 
 static void print_usage(void)
 {
-	printf("Usage: proc_elf_ctrl [OPTIONS] [PID]\n");
+	printf("Usage: proclens [OPTIONS] [PID]\n");
 	printf("\n");
 	printf("Options:\n");
 	printf("  -h, --help       Show this help message and exit\n");
@@ -1011,7 +1014,7 @@ int main(int argc, char **argv)
 
 	if (argc > 1 &&
 	    (strcmp(argv[1], "--version") == 0 || strcmp(argv[1], "-v") == 0)) {
-		printf("proc_elf_ctrl %s\n", PROCLENS_VERSION);
+		printf("proclens %s\n", PROCLENS_VERSION);
 		return 0;
 	}
 
