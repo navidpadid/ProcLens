@@ -120,8 +120,7 @@ int main(void)
 	assert(strcmp(size_buf, "1 MB") == 0);
 	assert(len > 0);
 
-	len = format_size_with_unit(5 * 1024 * 1024, size_buf,
-				    sizeof(size_buf));
+	len = format_size_with_unit(5 * 1024 * 1024, size_buf, sizeof(size_buf));
 	assert(strcmp(size_buf, "5 MB") == 0);
 
 	/* Test edge cases */
@@ -164,8 +163,7 @@ int main(void)
 	region.name = "CODE";
 	region.size = 1024 * 1024; /* 1 MB */
 	region.exists = 1;
-	len = generate_region_visualization(&region, 25, 50, viz_buf,
-					    sizeof(viz_buf));
+	len = generate_region_visualization(&region, 25, 50, viz_buf, sizeof(viz_buf));
 	assert(len > 0);
 	assert(strstr(viz_buf, "CODE"));
 	assert(strstr(viz_buf, "1 MB"));
@@ -175,8 +173,7 @@ int main(void)
 	region.name = "DATA";
 	region.size = 512; /* 512 B */
 	region.exists = 1;
-	len = generate_region_visualization(&region, 5, 50, viz_buf,
-					    sizeof(viz_buf));
+	len = generate_region_visualization(&region, 5, 50, viz_buf, sizeof(viz_buf));
 	assert(len > 0);
 	assert(strstr(viz_buf, "DATA"));
 	assert(strstr(viz_buf, "512 B"));
@@ -185,16 +182,14 @@ int main(void)
 	region.name = "BSS";
 	region.size = 0;
 	region.exists = 0;
-	len = generate_region_visualization(&region, 0, 50, viz_buf,
-					    sizeof(viz_buf));
+	len = generate_region_visualization(&region, 0, 50, viz_buf, sizeof(viz_buf));
 	assert(len == 0); /* Should return 0 for non-existent regions */
 
 	/* Test zero size but exists flag set */
 	region.name = "HEAP";
 	region.size = 0;
 	region.exists = 1;
-	len = generate_region_visualization(&region, 0, 50, viz_buf,
-					    sizeof(viz_buf));
+	len = generate_region_visualization(&region, 0, 50, viz_buf, sizeof(viz_buf));
 	assert(len == 0); /* Should return 0 for zero size */
 
 	/* Test single CPU at start */
@@ -356,8 +351,7 @@ int main(void)
 	assert(strstr(fault_buf, "Total: 0"));
 
 	/* Large values */
-	len = format_page_fault_stats(500000, 2500000, fault_buf,
-				      sizeof(fault_buf));
+	len = format_page_fault_stats(500000, 2500000, fault_buf, sizeof(fault_buf));
 	assert(len > 0);
 	assert(strstr(fault_buf, "Total: 3000000"));
 
@@ -400,8 +394,7 @@ int main(void)
 	assert(high_pressure == 0);
 
 	/* Large values */
-	high_pressure =
-		is_high_memory_pressure(1024 * 1024, 200 * 1024); /* ~19% */
+	high_pressure = is_high_memory_pressure(1024 * 1024, 200 * 1024); /* ~19% */
 	assert(high_pressure == 1);
 
 	/* I/O Statistics helper tests */
@@ -484,14 +477,12 @@ int main(void)
 	/* traffic line formatting tests */
 	char traffic_buf[200];
 
-	len = format_tcp_traffic_line(10, 2048, 11, 3072, traffic_buf,
-				      sizeof(traffic_buf));
+	len = format_tcp_traffic_line(10, 2048, 11, 3072, traffic_buf, sizeof(traffic_buf));
 	assert(len > 0);
 	assert(strcmp(traffic_buf, "          Traffic: RX pkts=10 bytes=2048  "
 				   "TX pkts=11 bytes=3072\n") == 0);
 
-	len = format_udp_traffic_line(3, 512, 4, 1024, traffic_buf,
-				      sizeof(traffic_buf));
+	len = format_udp_traffic_line(3, 512, 4, 1024, traffic_buf, sizeof(traffic_buf));
 	assert(len > 0);
 	assert(strcmp(traffic_buf, "          Traffic: RX pkts=3 bytes=512  TX "
 				   "pkts=4 bytes=1024 (queued)\n") == 0);
@@ -508,18 +499,15 @@ int main(void)
 
 	memset(talkers, 0, sizeof(talkers));
 
-	try_insert_top_talker(talkers, &talker_len,
-			      PROCLENS_MODULE_TOP_TALKERS_MAX, 10, 2, 6, 500,
+	try_insert_top_talker(talkers, &talker_len, PROCLENS_MODULE_TOP_TALKERS_MAX, 10, 2, 6, 500,
 			      500);
 	assert(talker_len == 1);
 	assert(talkers[0].fd == 10);
 	assert(talkers[0].total_bytes == 1000);
 
-	try_insert_top_talker(talkers, &talker_len,
-			      PROCLENS_MODULE_TOP_TALKERS_MAX, 20, 2, 6, 100,
+	try_insert_top_talker(talkers, &talker_len, PROCLENS_MODULE_TOP_TALKERS_MAX, 20, 2, 6, 100,
 			      100);
-	try_insert_top_talker(talkers, &talker_len,
-			      PROCLENS_MODULE_TOP_TALKERS_MAX, 30, 1, 17, 700,
+	try_insert_top_talker(talkers, &talker_len, PROCLENS_MODULE_TOP_TALKERS_MAX, 30, 1, 17, 700,
 			      500);
 	assert(talker_len == 3);
 	assert(talkers[0].fd == 30);
@@ -528,16 +516,15 @@ int main(void)
 	assert(talkers[2].fd == 20);
 
 	/* Replaces the current lowest-ranked entry */
-	try_insert_top_talker(talkers, &talker_len,
-			      PROCLENS_MODULE_TOP_TALKERS_MAX, 40, 10, 6, 300,
+	try_insert_top_talker(talkers, &talker_len, PROCLENS_MODULE_TOP_TALKERS_MAX, 40, 10, 6, 300,
 			      300);
 	assert(talker_len == 3);
 	assert(talkers[2].fd == 40);
 	assert(talkers[2].total_bytes == 600);
 
 	/* Zero-traffic entries are ignored */
-	try_insert_top_talker(talkers, &talker_len,
-			      PROCLENS_MODULE_TOP_TALKERS_MAX, 50, 2, 6, 0, 0);
+	try_insert_top_talker(talkers, &talker_len, PROCLENS_MODULE_TOP_TALKERS_MAX, 50, 2, 6, 0,
+			      0);
 	assert(talker_len == 3);
 	assert(talkers[0].fd == 30);
 
@@ -620,13 +607,11 @@ int main(void)
 		char name_buf[16];
 
 		snprintf(name_buf, sizeof(name_buf), "d%d", i);
-		add_netdev_count(devs, &dev_len, PROCLENS_MODULE_NETDEV_MAX,
-				 100 + i, name_buf);
+		add_netdev_count(devs, &dev_len, PROCLENS_MODULE_NETDEV_MAX, 100 + i, name_buf);
 	}
 	assert(dev_len == PROCLENS_MODULE_NETDEV_MAX);
 
-	add_netdev_count(devs, &dev_len, PROCLENS_MODULE_NETDEV_MAX, 999,
-			 "extra");
+	add_netdev_count(devs, &dev_len, PROCLENS_MODULE_NETDEV_MAX, 999, "extra");
 	assert(dev_len == PROCLENS_MODULE_NETDEV_MAX);
 
 	/* procfile write/read logic tests */
@@ -636,20 +621,17 @@ int main(void)
 		char out_buf[64];
 		int finished_state;
 
-		copied = update_pid_write_buffer(pid_buf, sizeof(pid_buf),
-						 "12345", 5);
+		copied = update_pid_write_buffer(pid_buf, sizeof(pid_buf), "12345", 5);
 		assert(copied == 5);
 		assert(strcmp(pid_buf, "12345") == 0);
 
-		copied = update_pid_write_buffer(pid_buf, sizeof(pid_buf), "1",
-						 1);
+		copied = update_pid_write_buffer(pid_buf, sizeof(pid_buf), "1", 1);
 		assert(copied == 1);
 		assert(strcmp(pid_buf, "1") == 0);
 		assert(pid_buf[1] == '\0');
 
 		copied = update_pid_write_buffer(pid_buf, sizeof(pid_buf),
-						 "1234567890123456789012345",
-						 25);
+						 "1234567890123456789012345", 25);
 		assert(copied == sizeof(pid_buf) - 1);
 		assert(pid_buf[sizeof(pid_buf) - 1] == '\0');
 
@@ -659,8 +641,7 @@ int main(void)
 		assert(procfile_read_should_finish(&finished_state) == 1);
 		assert(finished_state == 0);
 
-		assert(format_procfile_output("42", out_buf, sizeof(out_buf)) >
-		       0);
+		assert(format_procfile_output("42", out_buf, sizeof(out_buf)) > 0);
 		assert(strcmp(out_buf, "buff variable : 42\n") == 0);
 	}
 
