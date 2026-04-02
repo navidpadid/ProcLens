@@ -11,7 +11,8 @@ per-process I/O statistics, and thread information.
 
 ### Kernel Coding Style (HIGHEST PRIORITY)
 
-**CRITICAL**: All kernel module code MUST pass `make checkpatch` with zero errors and zero warnings.
+**CRITICAL**: Kernel module files (`src/proclens_module.c`, `src/proclens_module.h`) MUST pass
+`make checkpatch` with zero errors and zero warnings.
 
 - Follow Linux kernel coding style strictly
 - Use tabs for indentation (width: 8)
@@ -23,14 +24,15 @@ per-process I/O statistics, and thread information.
 
 ### Special Formatting Rules
 
-When using macros like `for_each_thread`, the opening brace style may conflict with `clang-format`. Use formatting disable pragmas when needed:
+When using macros like `for_each_thread`, the opening brace style may conflict with
+`clang-format`. Use formatting disable pragmas when needed:
 
 ```c
-// clang-format off
+/* clang-format off */
 for_each_thread(task, thread) {
-	// code here
+	/* code here */
 }
-// clang-format on
+/* clang-format on */
 ```
 
 ### Code Quality Tools
@@ -43,6 +45,10 @@ Run these before every commit:
 4. `make cppcheck` - Additional static analysis
 
 The pre-commit hook automatically runs format-check and cppcheck.
+
+`make checkpatch` in this repository scans both kernel and userspace files. For release
+quality, treat warnings/errors in `src/proclens_module.c` and `src/proclens_module.h`
+as blocking, and triage userspace warnings separately.
 
 ## File Organization
 
@@ -271,4 +277,6 @@ Tests validate actual kernel module behavior in isolated environment.
 
 ---
 
-**Remember**: Kernel code quality is non-negotiable. Always run `make checkpatch` and ensure it passes with 0 errors and 0 warnings.
+**Remember**: Kernel code quality is non-negotiable. Always run `make checkpatch` and
+ensure `src/proclens_module.c` and `src/proclens_module.h` pass with 0 errors and 0
+warnings.

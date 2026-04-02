@@ -38,8 +38,7 @@ static void append_output(const char *fmt, ...)
 		return;
 
 	va_start(args, fmt);
-	n = vsnprintf(output_buf + output_len, sizeof(output_buf) - output_len,
-		      fmt, args);
+	n = vsnprintf(output_buf + output_len, sizeof(output_buf) - output_len, fmt, args);
 	va_end(args);
 
 	if (n <= 0)
@@ -102,8 +101,7 @@ static FILE *mock_fopen(const char *path, const char *mode)
 	if (!strcmp(path, "/fake_proc/threads") && strchr(mode, 'r')) {
 		if (fail_threads_open)
 			return NULL;
-		return fmemopen((void *)threads_content,
-				strlen(threads_content), "r");
+		return fmemopen((void *)threads_content, strlen(threads_content), "r");
 	}
 
 	if (strstr(path, "/proc/") == path && strstr(path, "/cmdline")) {
@@ -114,10 +112,8 @@ static FILE *mock_fopen(const char *path, const char *mode)
 
 	if (!strcmp(path, "/proc/modules") && strchr(mode, 'r')) {
 		if (module_loaded)
-			return fmemopen(
-				(void *)"proclens_module 0 0 - Live 0x0\n",
-				strlen("proclens_module 0 0 - Live 0x0\n"),
-				"r");
+			return fmemopen((void *)"proclens_module 0 0 - Live 0x0\n",
+					strlen("proclens_module 0 0 - Live 0x0\n"), "r");
 
 		return fmemopen((void *)"", 0, "r");
 	}
@@ -428,8 +424,7 @@ static void test_live_header_and_footer_show_timestamps(void)
 	reset_mocks();
 	memset(&snap, 0, sizeof(snap));
 	snprintf(snap.pid, sizeof(snap.pid), "%s", "123");
-	snprintf(snap.captured_at, sizeof(snap.captured_at), "%s",
-		 "26/03/26 12:34:56");
+	snprintf(snap.captured_at, sizeof(snap.captured_at), "%s", "26/03/26 12:34:56");
 	snap.view = VIEW_MEMORY;
 	print_live_header(&snap, 0, 1);
 	print_live_footer(snap.captured_at);
@@ -450,23 +445,19 @@ static void test_snapshot_history_offset_navigation(void)
 	memset(&snap, 0, sizeof(snap));
 
 	snprintf(snap.pid, sizeof(snap.pid), "%s", "111");
-	snprintf(snap.captured_at, sizeof(snap.captured_at), "%s",
-		 "26/03/26 12:00:01");
+	snprintf(snap.captured_at, sizeof(snap.captured_at), "%s", "26/03/26 12:00:01");
 	snap.view = VIEW_MEMORY;
 	append_snapshot(history, &history_count, &history_next, &snap);
 
 	snprintf(snap.pid, sizeof(snap.pid), "%s", "222");
-	snprintf(snap.captured_at, sizeof(snap.captured_at), "%s",
-		 "26/03/26 12:00:02");
+	snprintf(snap.captured_at, sizeof(snap.captured_at), "%s", "26/03/26 12:00:02");
 	append_snapshot(history, &history_count, &history_next, &snap);
 
-	picked =
-		get_snapshot_by_offset(history, history_count, history_next, 0);
+	picked = get_snapshot_by_offset(history, history_count, history_next, 0);
 	assert(picked);
 	assert(strcmp(picked->pid, "222") == 0);
 
-	picked =
-		get_snapshot_by_offset(history, history_count, history_next, 1);
+	picked = get_snapshot_by_offset(history, history_count, history_next, 1);
 	assert(picked);
 	assert(strcmp(picked->pid, "111") == 0);
 

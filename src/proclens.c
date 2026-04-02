@@ -34,8 +34,7 @@ static void init_color_output(void)
 {
 	const char *no_color = getenv("NO_COLOR");
 
-	g_use_color =
-		isatty(STDOUT_FILENO) && (!no_color || no_color[0] == '\0');
+	g_use_color = isatty(STDOUT_FILENO) && (!no_color || no_color[0] == '\0');
 }
 
 static void restore_terminal(void)
@@ -158,9 +157,8 @@ static int ensure_module_loaded(void)
 			"%serror:%s kernel module 'proclens_module' is not "
 			"loaded\n",
 			color_code(C_YELLOW), color_code(C_RESET));
-		fprintf(stderr,
-			"hint: run 'sudo insmod ./build/proclens_module.ko' or "
-			"'sudo make install'\n");
+		fprintf(stderr, "hint: run 'sudo insmod ./build/proclens_module.ko' or "
+				"'sudo make install'\n");
 		return -1;
 	}
 
@@ -186,11 +184,9 @@ static int ensure_proc_files_present(void)
 			fprintf(stderr,
 				"%serror:%s required proc file is missing: "
 				"%s\n",
-				color_code(C_YELLOW), color_code(C_RESET),
-				path);
-			fprintf(stderr,
-				"hint: confirm /proc/proclens_module is "
-				"mounted and initialized\n");
+				color_code(C_YELLOW), color_code(C_RESET), path);
+			fprintf(stderr, "hint: confirm /proc/proclens_module is "
+					"mounted and initialized\n");
 			free(path);
 			return -1;
 		}
@@ -206,8 +202,8 @@ static int ensure_root_privileges(void)
 	if (geteuid() == 0)
 		return 0;
 
-	fprintf(stderr, "%serror:%s proclens requires root privileges\n",
-		color_code(C_YELLOW), color_code(C_RESET));
+	fprintf(stderr, "%serror:%s proclens requires root privileges\n", color_code(C_YELLOW),
+		color_code(C_RESET));
 	fprintf(stderr, "hint: run with sudo, e.g. 'sudo proclens'\n");
 	return -1;
 }
@@ -236,8 +232,7 @@ static void print_cmdline(const char *pid_str)
 			cmdline[i] = ' ';
 	}
 
-	printf("%sCommand line:%s   %s\n", color_code(C_YELLOW),
-	       color_code(C_RESET), cmdline);
+	printf("%sCommand line:%s   %s\n", color_code(C_YELLOW), color_code(C_RESET), cmdline);
 }
 
 static void print_process_info(const char *pid_str)
@@ -348,8 +343,7 @@ static void print_det_preamble(const char *det_content)
 	while (*cursor) {
 		size_t line_len = 0;
 
-		while (cursor[line_len] && cursor[line_len] != '\n' &&
-		       line_len < sizeof(line) - 2)
+		while (cursor[line_len] && cursor[line_len] != '\n' && line_len < sizeof(line) - 2)
 			line_len++;
 
 		memcpy(line, cursor, line_len);
@@ -361,8 +355,7 @@ static void print_det_preamble(const char *det_content)
 		}
 		line[line_len] = '\0';
 
-		if (is_memory_section_start(line) ||
-		    strncmp(line, "[network]", 9) == 0 ||
+		if (is_memory_section_start(line) || strncmp(line, "[network]", 9) == 0 ||
 		    strncmp(line, "[io]", 4) == 0)
 			break;
 
@@ -379,8 +372,7 @@ static void print_memory_view(const char *det_content)
 	while (*cursor) {
 		size_t line_len = 0;
 
-		while (cursor[line_len] && cursor[line_len] != '\n' &&
-		       line_len < sizeof(line) - 2)
+		while (cursor[line_len] && cursor[line_len] != '\n' && line_len < sizeof(line) - 2)
 			line_len++;
 
 		memcpy(line, cursor, line_len);
@@ -392,8 +384,7 @@ static void print_memory_view(const char *det_content)
 		}
 		line[line_len] = '\0';
 
-		if (strncmp(line, "[network]", 9) == 0 ||
-		    strncmp(line, "[io]", 4) == 0)
+		if (strncmp(line, "[network]", 9) == 0 || strncmp(line, "[io]", 4) == 0)
 			break;
 
 		if (is_memory_section_start(line))
@@ -403,32 +394,24 @@ static void print_memory_view(const char *det_content)
 			continue;
 
 		if (is_memory_section_start(line)) {
-			printf("%s%s%s%s", color_code(C_BLUE),
-			       color_code(C_BOLD), line, color_code(C_RESET));
+			printf("%s%s%s%s", color_code(C_BLUE), color_code(C_BOLD), line,
+			       color_code(C_RESET));
 		} else if (strncmp(line,
 				   "-------------------------------------------"
 				   "-----",
 				   48) == 0) {
-			printf("%s%s%s", color_code(C_BLUE), line,
-			       color_code(C_RESET));
-		} else if (strncmp(line, "Low:", 4) == 0 ||
-			   strncmp(line, "High:", 5) == 0) {
-			printf("%s%s%s", color_code(C_CYAN), line,
-			       color_code(C_RESET));
-		} else if (strncmp(line, "  RSS", 5) == 0 ||
-			   strncmp(line, "  VSZ", 5) == 0 ||
+			printf("%s%s%s", color_code(C_BLUE), line, color_code(C_RESET));
+		} else if (strncmp(line, "Low:", 4) == 0 || strncmp(line, "High:", 5) == 0) {
+			printf("%s%s%s", color_code(C_CYAN), line, color_code(C_RESET));
+		} else if (strncmp(line, "  RSS", 5) == 0 || strncmp(line, "  VSZ", 5) == 0 ||
 			   strncmp(line, "  Swap", 6) == 0 ||
 			   strncmp(line, "  Page Faults", 13) == 0 ||
 			   strncmp(line, "  OOM Score", 11) == 0) {
-			printf("%s%s%s", color_code(C_YELLOW), line,
-			       color_code(C_RESET));
-		} else if (strncmp(line, "CODE", 4) == 0 ||
-			   strncmp(line, "DATA", 4) == 0 ||
-			   strncmp(line, "BSS", 3) == 0 ||
-			   strncmp(line, "HEAP", 4) == 0 ||
+			printf("%s%s%s", color_code(C_YELLOW), line, color_code(C_RESET));
+		} else if (strncmp(line, "CODE", 4) == 0 || strncmp(line, "DATA", 4) == 0 ||
+			   strncmp(line, "BSS", 3) == 0 || strncmp(line, "HEAP", 4) == 0 ||
 			   strncmp(line, "STACK", 5) == 0) {
-			printf("%s%s%s", color_code(C_GREEN), line,
-			       color_code(C_RESET));
+			printf("%s%s%s", color_code(C_GREEN), line, color_code(C_RESET));
 		} else {
 			printf("%s", line);
 		}
@@ -444,8 +427,7 @@ static void print_network_view(const char *det_content)
 	while (*cursor) {
 		size_t line_len = 0;
 
-		while (cursor[line_len] && cursor[line_len] != '\n' &&
-		       line_len < sizeof(line) - 2)
+		while (cursor[line_len] && cursor[line_len] != '\n' && line_len < sizeof(line) - 2)
 			line_len++;
 
 		memcpy(line, cursor, line_len);
@@ -466,11 +448,10 @@ static void print_network_view(const char *det_content)
 		if (!in_network_section)
 			continue;
 
-		if (strncmp(line, "[network]", 9) == 0 ||
-		    strncmp(line, "Open Sockets:", 13) == 0 ||
+		if (strncmp(line, "[network]", 9) == 0 || strncmp(line, "Open Sockets:", 13) == 0 ||
 		    strncmp(line, "top_talkers:", 12) == 0) {
-			printf("%s%s%s%s", color_code(C_GREEN),
-			       color_code(C_BOLD), line, color_code(C_RESET));
+			printf("%s%s%s%s", color_code(C_GREEN), color_code(C_BOLD), line,
+			       color_code(C_RESET));
 		} else if (strncmp(line, "sockets_total:", 14) == 0 ||
 			   strncmp(line, "rx_packets:", 11) == 0 ||
 			   strncmp(line, "tx_packets:", 11) == 0 ||
@@ -479,21 +460,15 @@ static void print_network_view(const char *det_content)
 			   strncmp(line, "tcp_retransmits:", 16) == 0 ||
 			   strncmp(line, "drops:", 6) == 0 ||
 			   strncmp(line, "net_devices:", 12) == 0) {
-			printf("%s%s%s", color_code(C_YELLOW), line,
-			       color_code(C_RESET));
-		} else if (strncmp(line, " [FD", 4) == 0 ||
-			   strncmp(line, "  #", 3) == 0) {
-			printf("%s%s%s", color_code(C_MAGENTA), line,
-			       color_code(C_RESET));
+			printf("%s%s%s", color_code(C_YELLOW), line, color_code(C_RESET));
+		} else if (strncmp(line, " [FD", 4) == 0 || strncmp(line, "  #", 3) == 0) {
+			printf("%s%s%s", color_code(C_MAGENTA), line, color_code(C_RESET));
 		} else if (strncmp(line, "   Traffic:", 11) == 0 ||
 			   strncmp(line, "         Local:", 15) == 0 ||
 			   strncmp(line, "         Remote:", 16) == 0) {
-			printf("%s%s%s", color_code(C_CYAN), line,
-			       color_code(C_RESET));
-		} else if (strncmp(line, "--------------------------------",
-				   32) == 0) {
-			printf("%s%s%s", color_code(C_BLUE), line,
-			       color_code(C_RESET));
+			printf("%s%s%s", color_code(C_CYAN), line, color_code(C_RESET));
+		} else if (strncmp(line, "--------------------------------", 32) == 0) {
+			printf("%s%s%s", color_code(C_BLUE), line, color_code(C_RESET));
 		} else {
 			printf("%s", line);
 		}
@@ -509,8 +484,7 @@ static void print_io_view(const char *det_content)
 	while (*cursor) {
 		size_t line_len = 0;
 
-		while (cursor[line_len] && cursor[line_len] != '\n' &&
-		       line_len < sizeof(line) - 2)
+		while (cursor[line_len] && cursor[line_len] != '\n' && line_len < sizeof(line) - 2)
 			line_len++;
 
 		memcpy(line, cursor, line_len);
@@ -529,25 +503,19 @@ static void print_io_view(const char *det_content)
 			continue;
 
 		if (strncmp(line, "[io]", 4) == 0) {
-			printf("%s%s%s%s", color_code(C_GREEN),
-			       color_code(C_BOLD), line, color_code(C_RESET));
-		} else if (strncmp(line, "rchar:", 6) == 0 ||
-			   strncmp(line, "wchar:", 6) == 0 ||
-			   strncmp(line, "syscr:", 6) == 0 ||
-			   strncmp(line, "syscw:", 6) == 0 ||
+			printf("%s%s%s%s", color_code(C_GREEN), color_code(C_BOLD), line,
+			       color_code(C_RESET));
+		} else if (strncmp(line, "rchar:", 6) == 0 || strncmp(line, "wchar:", 6) == 0 ||
+			   strncmp(line, "syscr:", 6) == 0 || strncmp(line, "syscw:", 6) == 0 ||
 			   strncmp(line, "read_bytes:", 11) == 0 ||
 			   strncmp(line, "write_bytes:", 12) == 0 ||
 			   strncmp(line, "cancelled_write_bytes:", 22) == 0 ||
-			   strncmp(line, "avg_read_bytes_per_syscall:", 27) ==
-				   0 ||
-			   strncmp(line, "avg_write_bytes_per_syscall:", 28) ==
-				   0 ||
+			   strncmp(line, "avg_read_bytes_per_syscall:", 27) == 0 ||
+			   strncmp(line, "avg_write_bytes_per_syscall:", 28) == 0 ||
 			   strncmp(line, "io_intensity:", 13) == 0) {
-			printf("%s%s%s", color_code(C_YELLOW), line,
-			       color_code(C_RESET));
+			printf("%s%s%s", color_code(C_YELLOW), line, color_code(C_RESET));
 		} else if (strncmp(line, "status:", 7) == 0) {
-			printf("%s%s%s", color_code(C_CYAN), line,
-			       color_code(C_RESET));
+			printf("%s%s%s", color_code(C_CYAN), line, color_code(C_RESET));
 		} else {
 			printf("%s", line);
 		}
@@ -661,9 +629,8 @@ static const char *view_name(int view)
 	return "Unknown";
 }
 
-static void print_live_header(const struct live_snapshot *snap,
-			      int browse_offset,
-			      int history_count)
+static void
+print_live_header(const struct live_snapshot *snap, int browse_offset, int history_count)
 {
 	printf("\033[H\033[2J");
 	fflush(stdout);
@@ -675,13 +642,11 @@ static void print_live_header(const struct live_snapshot *snap,
 	printf("==============================================================="
 	       "%s\n",
 	       color_code(C_RESET));
-	printf("%sPID:%s %s\n", color_code(C_YELLOW), color_code(C_RESET),
-	       snap->pid);
-	printf("%sCurrent section:%s %s\n", color_code(C_YELLOW),
-	       color_code(C_RESET), view_name(snap->view));
-	printf("%sSnapshot index:%s %d/%d\n", color_code(C_YELLOW),
-	       color_code(C_RESET), history_count - browse_offset,
-	       history_count);
+	printf("%sPID:%s %s\n", color_code(C_YELLOW), color_code(C_RESET), snap->pid);
+	printf("%sCurrent section:%s %s\n", color_code(C_YELLOW), color_code(C_RESET),
+	       view_name(snap->view));
+	printf("%sSnapshot index:%s %d/%d\n", color_code(C_YELLOW), color_code(C_RESET),
+	       history_count - browse_offset, history_count);
 	puts("Sections: [1] Memory  [2] Network  [3] Threads  [4] I/O");
 	puts("History: [Up/k] older  [Down/j] newer  [f] follow live");
 	puts("Commands: 1/2/3/4 switch view, 0 change PID, Ctrl+C exit");
@@ -713,9 +678,8 @@ static void free_snapshot(struct live_snapshot *snap)
 	snap->view = VIEW_MEMORY;
 }
 
-static void clear_snapshot_history(struct live_snapshot *history,
-				   int *history_count,
-				   int *history_next)
+static void
+clear_snapshot_history(struct live_snapshot *history, int *history_count, int *history_next)
 {
 	int i;
 
@@ -742,11 +706,10 @@ static void append_snapshot(struct live_snapshot *history,
 		(*history_count)++;
 }
 
-static struct live_snapshot *
-get_snapshot_by_offset(struct live_snapshot *history,
-		       int history_count,
-		       int history_next,
-		       int browse_offset)
+static struct live_snapshot *get_snapshot_by_offset(struct live_snapshot *history,
+						    int history_count,
+						    int history_next,
+						    int browse_offset)
 {
 	int newest_index;
 	int target_index;
@@ -758,21 +721,17 @@ get_snapshot_by_offset(struct live_snapshot *history,
 		return NULL;
 
 	newest_index = (history_next + MAX_SNAPSHOTS - 1) % MAX_SNAPSHOTS;
-	target_index =
-		(newest_index + MAX_SNAPSHOTS - browse_offset) % MAX_SNAPSHOTS;
+	target_index = (newest_index + MAX_SNAPSHOTS - browse_offset) % MAX_SNAPSHOTS;
 	return &history[target_index];
 }
 
-static int capture_live_snapshot(const char *pid_str,
-				 int view,
-				 struct live_snapshot *snapshot)
+static int capture_live_snapshot(const char *pid_str, int view, struct live_snapshot *snapshot)
 {
 	size_t len;
 
 	memset(snapshot, 0, sizeof(*snapshot));
 	snapshot->view = view;
-	format_current_time(snapshot->captured_at,
-			    sizeof(snapshot->captured_at));
+	format_current_time(snapshot->captured_at, sizeof(snapshot->captured_at));
 
 	len = strlen(pid_str);
 	if (len >= sizeof(snapshot->pid))
@@ -786,8 +745,7 @@ static int capture_live_snapshot(const char *pid_str,
 	if (read_proc_file_alloc("det", &snapshot->det_content) < 0)
 		goto fail;
 
-	if (view == VIEW_THREADS &&
-	    read_proc_file_alloc("threads", &snapshot->threads_content) < 0)
+	if (view == VIEW_THREADS && read_proc_file_alloc("threads", &snapshot->threads_content) < 0)
 		goto fail;
 
 	return 0;
@@ -912,17 +870,14 @@ static void run_live_mode(void)
 		const struct live_snapshot *current;
 
 		if (browse_offset == 0) {
-			if (capture_live_snapshot(pid_user, view, &snapshot) ==
-			    0)
-				append_snapshot(history, &history_count,
-						&history_next, &snapshot);
+			if (capture_live_snapshot(pid_user, view, &snapshot) == 0)
+				append_snapshot(history, &history_count, &history_next, &snapshot);
 		}
 
-		current = get_snapshot_by_offset(history, history_count,
-						 history_next, browse_offset);
+		current =
+			get_snapshot_by_offset(history, history_count, history_next, browse_offset);
 		if (current) {
-			print_live_header(current, browse_offset,
-					  history_count);
+			print_live_header(current, browse_offset, history_count);
 			print_live_snapshot(current);
 		}
 
@@ -937,23 +892,19 @@ static void run_live_mode(void)
 		if (key == '1') {
 			view = VIEW_MEMORY;
 			browse_offset = 0;
-			clear_snapshot_history(history, &history_count,
-					       &history_next);
+			clear_snapshot_history(history, &history_count, &history_next);
 		} else if (key == '2') {
 			view = VIEW_NETWORK;
 			browse_offset = 0;
-			clear_snapshot_history(history, &history_count,
-					       &history_next);
+			clear_snapshot_history(history, &history_count, &history_next);
 		} else if (key == '3') {
 			view = VIEW_THREADS;
 			browse_offset = 0;
-			clear_snapshot_history(history, &history_count,
-					       &history_next);
+			clear_snapshot_history(history, &history_count, &history_next);
 		} else if (key == '4') {
 			view = VIEW_IO;
 			browse_offset = 0;
-			clear_snapshot_history(history, &history_count,
-					       &history_next);
+			clear_snapshot_history(history, &history_count, &history_next);
 		} else if (key == 'k') {
 			if (browse_offset + 1 < history_count)
 				browse_offset++;
@@ -969,8 +920,7 @@ static void run_live_mode(void)
 				fprintf(stderr, "invalid PID\n");
 			apply_raw_mode();
 			browse_offset = 0;
-			clear_snapshot_history(history, &history_count,
-					       &history_next);
+			clear_snapshot_history(history, &history_count, &history_next);
 		}
 	}
 
@@ -1006,14 +956,12 @@ int main(int argc, char **argv)
 {
 	init_color_output();
 
-	if (argc > 1 &&
-	    (strcmp(argv[1], "--help") == 0 || strcmp(argv[1], "-h") == 0)) {
+	if (argc > 1 && (strcmp(argv[1], "--help") == 0 || strcmp(argv[1], "-h") == 0)) {
 		print_usage();
 		return 0;
 	}
 
-	if (argc > 1 &&
-	    (strcmp(argv[1], "--version") == 0 || strcmp(argv[1], "-v") == 0)) {
+	if (argc > 1 && (strcmp(argv[1], "--version") == 0 || strcmp(argv[1], "-v") == 0)) {
 		printf("proclens %s\n", PROCLENS_VERSION);
 		return 0;
 	}

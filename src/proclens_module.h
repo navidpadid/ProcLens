@@ -21,10 +21,8 @@ typedef u64 eh_u64;
  * Clears destination to avoid stale bytes from previous writes.
  * Returns bytes copied from src.
  */
-static inline size_t update_pid_write_buffer(char *dst,
-					     size_t dst_size,
-					     const char *src,
-					     size_t src_len)
+static inline size_t
+update_pid_write_buffer(char *dst, size_t dst_size, const char *src, size_t src_len)
 {
 	size_t copy_len;
 
@@ -57,8 +55,7 @@ static inline int procfile_read_should_finish(int *finished)
 }
 
 /* Format procfile read output into caller-provided buffer. */
-static inline int
-format_procfile_output(const char *src, char *out, int out_size)
+static inline int format_procfile_output(const char *src, char *out, int out_size)
 {
 	if (!src || !out || out_size <= 0)
 		return 0;
@@ -121,9 +118,8 @@ static inline int compute_heap_range(unsigned long start_brk,
  * Used for finding VMAs that contain specific addresses like stack
  * Returns 1 if addr is within [range_start, range_end), 0 otherwise
  */
-static inline int is_address_in_range(unsigned long addr,
-				      unsigned long range_start,
-				      unsigned long range_end)
+static inline int
+is_address_in_range(unsigned long addr, unsigned long range_start, unsigned long range_end)
 {
 	if (range_start > range_end)
 		return 0;
@@ -176,10 +172,8 @@ static inline char get_thread_state_char(unsigned long state)
  *   out_buf: output buffer for the affinity string
  *   buf_size: size of output buffer
  */
-static inline int build_cpu_affinity_string(const int *cpu_mask,
-					    int max_cpus,
-					    char *out_buf,
-					    int buf_size)
+static inline int
+build_cpu_affinity_string(const int *cpu_mask, int max_cpus, char *out_buf, int buf_size)
 {
 	int i, len = 0;
 	int has_cpu = 0;
@@ -190,8 +184,7 @@ static inline int build_cpu_affinity_string(const int *cpu_mask,
 	for (i = 0; i < max_cpus && len < buf_size - 2; i++) {
 		if (cpu_mask[i]) {
 			has_cpu = 1;
-			len += snprintf(out_buf + len, buf_size - len, "%d,",
-					i);
+			len += snprintf(out_buf + len, buf_size - len, "%d,", i);
 		}
 	}
 
@@ -293,15 +286,13 @@ static inline void try_insert_top_talker(struct top_talker_entry *list,
 /* Format size with appropriate unit (B, KB, MB)
  * Returns number of characters written (excluding null terminator)
  */
-static inline int
-format_size_with_unit(unsigned long size, char *out_buf, int buf_size)
+static inline int format_size_with_unit(unsigned long size, char *out_buf, int buf_size)
 {
 	if (!out_buf || buf_size < 10)
 		return 0;
 
 	if (size >= 1024 * 1024)
-		return snprintf(out_buf, buf_size, "%lu MB",
-				size / (1024 * 1024));
+		return snprintf(out_buf, buf_size, "%lu MB", size / (1024 * 1024));
 	else if (size >= 1024)
 		return snprintf(out_buf, buf_size, "%lu KB", size / 1024);
 	else
@@ -312,9 +303,8 @@ format_size_with_unit(unsigned long size, char *out_buf, int buf_size)
  * Ensures at least 1 character width for non-zero sizes
  * Returns the proportional width
  */
-static inline int calculate_bar_width(unsigned long region_size,
-				      unsigned long total_size,
-				      int bar_width)
+static inline int
+calculate_bar_width(unsigned long region_size, unsigned long total_size, int bar_width)
 {
 	int width;
 
@@ -341,12 +331,11 @@ static inline int calculate_bar_width(unsigned long region_size,
  *   out_buf: output buffer
  *   buf_size: size of output buffer
  */
-static inline int
-generate_region_visualization(const struct memory_region *region,
-			      int width,
-			      int bar_width,
-			      char *out_buf,
-			      int buf_size)
+static inline int generate_region_visualization(const struct memory_region *region,
+						int width,
+						int bar_width,
+						char *out_buf,
+						int buf_size)
 {
 	char size_str[32];
 	int len = 0;
@@ -362,8 +351,7 @@ generate_region_visualization(const struct memory_region *region,
 	format_size_with_unit(region->size, size_str, sizeof(size_str));
 
 	/* Write region header */
-	len += snprintf(out_buf + len, buf_size - len, "%-5s (%s)\n",
-			region->name, size_str);
+	len += snprintf(out_buf + len, buf_size - len, "%-5s (%s)\n", region->name, size_str);
 
 	/* Write bar */
 	len += snprintf(out_buf + len, buf_size - len, "      [");
@@ -405,8 +393,7 @@ static inline void add_netdev_count(struct netdev_count *list,
 
 	list[*list_len].ifindex = ifindex;
 	list[*list_len].count = 1;
-	snprintf(list[*list_len].name, sizeof(list[*list_len].name), "%s",
-		 name);
+	snprintf(list[*list_len].name, sizeof(list[*list_len].name), "%s", name);
 	(*list_len)++;
 }
 
@@ -416,9 +403,8 @@ static inline void add_netdev_count(struct netdev_count *list,
  * RSS = Anonymous pages + File-backed pages + Shared memory pages
  * Returns total RSS in pages
  */
-static inline unsigned long calculate_rss_pages(unsigned long anon_pages,
-						unsigned long file_pages,
-						unsigned long shmem_pages)
+static inline unsigned long
+calculate_rss_pages(unsigned long anon_pages, unsigned long file_pages, unsigned long shmem_pages)
 {
 	return anon_pages + file_pages + shmem_pages;
 }
@@ -460,8 +446,8 @@ static inline int is_valid_oom_score_adj(long oom_score_adj)
  * Returns (used_kb * 100) / total_kb
  * Returns 0 if total_kb is 0 to avoid division by zero
  */
-static inline unsigned long
-calculate_memory_usage_percent(unsigned long used_kb, unsigned long total_kb)
+static inline unsigned long calculate_memory_usage_percent(unsigned long used_kb,
+							   unsigned long total_kb)
 {
 	if (total_kb == 0)
 		return 0;
@@ -479,17 +465,15 @@ static inline int format_page_fault_stats(unsigned long major_faults,
 	if (!out_buf || buf_size < 50)
 		return 0;
 
-	return snprintf(out_buf, buf_size, "Major: %lu, Minor: %lu, Total: %lu",
-			major_faults, minor_faults,
-			major_faults + minor_faults);
+	return snprintf(out_buf, buf_size, "Major: %lu, Minor: %lu, Total: %lu", major_faults,
+			minor_faults, major_faults + minor_faults);
 }
 
 /* Check if memory pressure is high based on swap usage
  * Returns 1 if swap usage indicates high memory pressure, 0 otherwise
  * Threshold: swap > 10% of RSS indicates pressure
  */
-static inline int is_high_memory_pressure(unsigned long rss_kb,
-					  unsigned long swap_kb)
+static inline int is_high_memory_pressure(unsigned long rss_kb, unsigned long swap_kb)
 {
 	if (rss_kb == 0)
 		return (swap_kb > 0);
@@ -501,8 +485,7 @@ static inline int is_high_memory_pressure(unsigned long rss_kb,
 /* Calculate average bytes per syscall
  * Returns 0 when syscall_count is 0 to avoid division by zero
  */
-static inline eh_u64 calculate_avg_bytes_per_syscall(eh_u64 total_bytes,
-						     eh_u64 syscall_count)
+static inline eh_u64 calculate_avg_bytes_per_syscall(eh_u64 total_bytes, eh_u64 syscall_count)
 {
 	if (syscall_count == 0)
 		return 0;
@@ -511,8 +494,7 @@ static inline eh_u64 calculate_avg_bytes_per_syscall(eh_u64 total_bytes,
 }
 
 /* Calculate storage I/O intensity as read + write bytes */
-static inline eh_u64 calculate_io_intensity(eh_u64 read_bytes,
-					    eh_u64 write_bytes)
+static inline eh_u64 calculate_io_intensity(eh_u64 read_bytes, eh_u64 write_bytes)
 {
 	return read_bytes + write_bytes;
 }
@@ -588,8 +570,7 @@ static inline int format_tcp_traffic_line(eh_u64 rx_packets,
 		return 0;
 
 	return snprintf(out_buf, buf_size,
-			"          Traffic: RX pkts=%llu bytes=%llu  TX "
-			"pkts=%llu bytes=%llu\n",
+			"          Traffic: RX pkts=%llu bytes=%llu  TX pkts=%llu bytes=%llu\n",
 			rx_packets, rx_bytes, tx_packets, tx_bytes);
 }
 
@@ -606,10 +587,11 @@ static inline int format_udp_traffic_line(eh_u64 rx_packets,
 	if (!out_buf || buf_size < 90)
 		return 0;
 
+	/* clang-format off */
 	return snprintf(out_buf, buf_size,
-			"          Traffic: RX pkts=%llu bytes=%llu  TX "
-			"pkts=%llu bytes=%llu (queued)\n",
+			"          Traffic: RX pkts=%llu bytes=%llu  TX pkts=%llu bytes=%llu (queued)\n",
 			rx_packets, rx_bytes, tx_packets, tx_bytes);
+	/* clang-format on */
 }
 
 /* Convert TCP socket state value to string representation

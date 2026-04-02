@@ -31,8 +31,7 @@
 MODULE_LICENSE("Dual MIT/GPL"); // module license
 MODULE_VERSION(PROCLENS_VERSION);
 
-static char buff[20] =
-	"1"; // the common(global) buffer between kernel and user space
+static char buff[20] = "1"; // the common(global) buffer between kernel and user space
 static int user_pid; // the desired pid that we get from user
 static int number_opens; // number of opens(writes) to the pid file
 
@@ -42,8 +41,7 @@ static struct proc_dir_entry *proclens_module_dir, *proclens_module_det_entry,
 
 static int procfile_open(struct inode *inode, struct file *file);
 static ssize_t procfile_read(struct file *, char __user *, size_t, loff_t *);
-static ssize_t
-procfile_write(struct file *, const char __user *, size_t, loff_t *);
+static ssize_t procfile_write(struct file *, const char __user *, size_t, loff_t *);
 
 static void print_memory_layout(struct seq_file *m,
 				struct task_struct *task,
@@ -56,19 +54,15 @@ static void print_memory_layout(struct seq_file *m,
 				unsigned long elf_base)
 {
 	seq_puts(m, "\nMemory Layout:\n");
-	seq_puts(m,
-		 "----------------------------------------------------------");
+	seq_puts(m, "----------------------------------------------------------");
 	seq_puts(m, "----------------------\n");
-	seq_printf(m, "  Code Section:    0x%016lx - 0x%016lx\n",
-		   task->mm->start_code, task->mm->end_code);
-	seq_printf(m, "  Data Section:    0x%016lx - 0x%016lx\n",
-		   task->mm->start_data, task->mm->end_data);
-	seq_printf(m, "  BSS Section:     0x%016lx - 0x%016lx\n", bss_start,
-		   bss_end);
-	seq_printf(m, "  Heap:            0x%016lx - 0x%016lx\n", heap_start,
-		   heap_end);
-	seq_printf(m, "  Stack:           0x%016lx - 0x%016lx\n", stack_start,
-		   stack_end);
+	seq_printf(m, "  Code Section:    0x%016lx - 0x%016lx\n", task->mm->start_code,
+		   task->mm->end_code);
+	seq_printf(m, "  Data Section:    0x%016lx - 0x%016lx\n", task->mm->start_data,
+		   task->mm->end_data);
+	seq_printf(m, "  BSS Section:     0x%016lx - 0x%016lx\n", bss_start, bss_end);
+	seq_printf(m, "  Heap:            0x%016lx - 0x%016lx\n", heap_start, heap_end);
+	seq_printf(m, "  Stack:           0x%016lx - 0x%016lx\n", stack_start, stack_end);
 	seq_printf(m, "  ELF Base:        0x%016lx\n", elf_base);
 }
 
@@ -122,10 +116,8 @@ static void print_memory_layout_visualization(struct seq_file *m,
 		return;
 
 	/* Calculate proportional widths */
-	for (i = 0; i < 5; i++) {
-		widths[i] = calculate_bar_width(regions[i].size, total_size,
-						BAR_WIDTH);
-	}
+	for (i = 0; i < 5; i++)
+		widths[i] = calculate_bar_width(regions[i].size, total_size, BAR_WIDTH);
 
 	seq_puts(m, "\n");
 	seq_puts(m, "Memory Layout Visualization:\n");
@@ -136,8 +128,7 @@ static void print_memory_layout_visualization(struct seq_file *m,
 
 	/* Generate visualization for each region */
 	for (i = 0; i < 5; i++) {
-		if (generate_region_visualization(&regions[i], widths[i],
-						  BAR_WIDTH, viz_buf,
+		if (generate_region_visualization(&regions[i], widths[i], BAR_WIDTH, viz_buf,
 						  sizeof(viz_buf)) > 0) {
 			seq_puts(m, viz_buf);
 		}
@@ -149,8 +140,7 @@ static void print_memory_layout_visualization(struct seq_file *m,
 	seq_puts(m, "----------------------\n");
 }
 
-static void print_thread_info_line(struct seq_file *m,
-				   struct task_struct *thread)
+static void print_thread_info_line(struct seq_file *m, struct task_struct *thread)
 {
 	char state_char;
 	char cpu_affinity[32];
@@ -169,13 +159,10 @@ static void print_thread_info_line(struct seq_file *m,
 	/* Build CPU affinity mask array (show first 8 CPUs) */
 	for (i = 0; i < 8 && i < nr_cpu_ids; i++)
 		cpu_mask[i] = cpumask_test_cpu(i, &thread->cpus_mask) ? 1 : 0;
-	build_cpu_affinity_string(cpu_mask, 8, cpu_affinity,
-				  sizeof(cpu_affinity));
+	build_cpu_affinity_string(cpu_mask, 8, cpu_affinity, sizeof(cpu_affinity));
 
-	seq_printf(m,
-		   "%-5d  %-15.15s  %4llu.%02llu   %c      %4d      %4d  %s\n",
-		   thread->pid, thread->comm, (usage_permyriad / 100),
-		   (usage_permyriad % 100), state_char,
+	seq_printf(m, "%-5d  %-15.15s  %4llu.%02llu   %c      %4d      %4d  %s\n", thread->pid,
+		   thread->comm, (usage_permyriad / 100), (usage_permyriad % 100), state_char,
 		   thread->prio - 120, /* Convert to nice value */
 		   task_nice(thread), cpu_affinity);
 }
@@ -186,8 +173,7 @@ static void print_thread_info_line(struct seq_file *m,
  * Iterates through VMAs to find the one containing start_stack
  * Returns the vm_start (lower bound) of the stack VMA, or 0 if not found
  */
-static unsigned long find_stack_vma_end(struct mm_struct *mm,
-					unsigned long start_stack)
+static unsigned long find_stack_vma_end(struct mm_struct *mm, unsigned long start_stack)
 {
 	struct vm_area_struct *vma;
 	struct ma_state mas;
@@ -197,8 +183,7 @@ static unsigned long find_stack_vma_end(struct mm_struct *mm,
 	mas_for_each(&mas, vma, ULONG_MAX)
 	{
 		/* Use helper to check if start_stack is within this VMA */
-		if (is_address_in_range(start_stack, vma->vm_start,
-					vma->vm_end)) {
+		if (is_address_in_range(start_stack, vma->vm_start, vma->vm_end)) {
 			/* Found the stack VMA */
 			stack_end = vma->vm_start; /* Stack grows down */
 			break;
@@ -251,22 +236,17 @@ static void print_memory_pressure(struct seq_file *m, struct task_struct *task)
 	oom_score = task->signal->oom_score_adj;
 
 	seq_puts(m, "\nMemory Pressure Statistics:\n");
-	seq_puts(m,
-		 "----------------------------------------------------------");
+	seq_puts(m, "----------------------------------------------------------");
 	seq_puts(m, "----------------------\n");
 
 	/* Display RSS breakdown */
 	seq_printf(m, "  RSS (Resident):  %lu KB\n", rss_kb);
-	seq_printf(m, "    - Anonymous:   %lu KB\n",
-		   anon_pages << (PAGE_SHIFT - 10));
-	seq_printf(m, "    - File-backed: %lu KB\n",
-		   file_pages << (PAGE_SHIFT - 10));
-	seq_printf(m, "    - Shared Mem:  %lu KB\n",
-		   shmem_pages << (PAGE_SHIFT - 10));
+	seq_printf(m, "    - Anonymous:   %lu KB\n", anon_pages << (PAGE_SHIFT - 10));
+	seq_printf(m, "    - File-backed: %lu KB\n", file_pages << (PAGE_SHIFT - 10));
+	seq_printf(m, "    - Shared Mem:  %lu KB\n", shmem_pages << (PAGE_SHIFT - 10));
 
 	/* Virtual memory size */
-	seq_printf(m, "  VSZ (Virtual):   %lu KB\n",
-		   mm->total_vm << (PAGE_SHIFT - 10));
+	seq_printf(m, "  VSZ (Virtual):   %lu KB\n", mm->total_vm << (PAGE_SHIFT - 10));
 
 	/* Swap usage */
 	seq_printf(m, "  Swap Usage:      %lu KB\n", swap_kb);
@@ -284,8 +264,7 @@ static void print_memory_pressure(struct seq_file *m, struct task_struct *task)
 	 */
 	seq_printf(m, "  OOM Score Adj:   %ld\n", oom_score);
 
-	seq_puts(m,
-		 "----------------------------------------------------------");
+	seq_puts(m, "----------------------------------------------------------");
 	seq_puts(m, "----------------------\n");
 }
 
@@ -312,8 +291,7 @@ static void print_io_stats(struct seq_file *m, struct task_struct *task)
 	syscw = (u64)READ_ONCE(task->ioac.syscw);
 	read_bytes = (u64)READ_ONCE(task->ioac.read_bytes);
 	write_bytes = (u64)READ_ONCE(task->ioac.write_bytes);
-	cancelled_write_bytes =
-		(u64)READ_ONCE(task->ioac.cancelled_write_bytes);
+	cancelled_write_bytes = (u64)READ_ONCE(task->ioac.cancelled_write_bytes);
 
 	avg_read_bytes = calculate_avg_bytes_per_syscall(rchar, syscr);
 	avg_write_bytes = calculate_avg_bytes_per_syscall(wchar, syscw);
@@ -410,10 +388,9 @@ static void print_network_stats(struct seq_file *m, struct task_struct *task)
 		if (sk->sk_family == AF_UNIX)
 			unix_count++;
 
-		try_insert_top_talker(top_talkers, &top_talker_len,
-				      PROCLENS_MODULE_TOP_TALKERS_MAX, fd,
-				      sk->sk_family, sk->sk_protocol,
-				      socket_rx_bytes, socket_tx_bytes);
+		try_insert_top_talker(top_talkers, &top_talker_len, PROCLENS_MODULE_TOP_TALKERS_MAX,
+				      fd, sk->sk_family, sk->sk_protocol, socket_rx_bytes,
+				      socket_tx_bytes);
 
 		ifindex = READ_ONCE(sk->sk_bound_dev_if);
 		if (!ifindex)
@@ -422,16 +399,15 @@ static void print_network_stats(struct seq_file *m, struct task_struct *task)
 		if (ifindex > 0) {
 			dev = dev_get_by_index_rcu(sock_net(sk), ifindex);
 			dev_name = dev ? dev->name : "unknown";
-			add_netdev_count(netdevs, &netdev_len,
-					 PROCLENS_MODULE_NETDEV_MAX, ifindex,
+			add_netdev_count(netdevs, &netdev_len, PROCLENS_MODULE_NETDEV_MAX, ifindex,
 					 dev_name);
 		}
 	}
 
 	rcu_read_unlock();
 
-	seq_printf(m, "sockets_total: %d (tcp: %d, udp: %d, unix: %d)\n",
-		   socket_total, tcp_count, udp_count, unix_count);
+	seq_printf(m, "sockets_total: %d (tcp: %d, udp: %d, unix: %d)\n", socket_total, tcp_count,
+		   udp_count, unix_count);
 	seq_printf(m, "rx_packets: %llu\n", rx_packets);
 	seq_printf(m, "tx_packets: %llu\n", tx_packets);
 	seq_printf(m, "rx_bytes: %llu\n", rx_bytes);
@@ -444,8 +420,7 @@ static void print_network_stats(struct seq_file *m, struct task_struct *task)
 	} else {
 		seq_puts(m, "net_devices: ");
 		for (i = 0; i < netdev_len; i++) {
-			seq_printf(m, "%s=%d", netdevs[i].name,
-				   netdevs[i].count);
+			seq_printf(m, "%s=%d", netdevs[i].name, netdevs[i].count);
 			if (i + 1 < netdev_len)
 				seq_puts(m, " ");
 		}
@@ -459,8 +434,7 @@ static void print_network_stats(struct seq_file *m, struct task_struct *task)
 	}
 
 	for (i = 0; i < top_talker_len; i++) {
-		seq_printf(m, "  #%d FD %u Proto: %-5s Family: %-10s ", i + 1,
-			   top_talkers[i].fd,
+		seq_printf(m, "  #%d FD %u Proto: %-5s Family: %-10s ", i + 1, top_talkers[i].fd,
 			   socket_protocol_to_string(top_talkers[i].protocol),
 			   socket_family_to_string(top_talkers[i].family));
 		seq_printf(m, "RX bytes=%llu TX bytes=%llu Total bytes=%llu\n",
@@ -499,8 +473,7 @@ static void print_sockets(struct seq_file *m, struct task_struct *task)
 		return;
 
 	seq_puts(m, "\nOpen Sockets:\n");
-	seq_puts(m,
-		 "----------------------------------------------------------");
+	seq_puts(m, "----------------------------------------------------------");
 	seq_puts(m, "----------------------\n");
 
 	rcu_read_lock();
@@ -527,11 +500,8 @@ static void print_sockets(struct seq_file *m, struct task_struct *task)
 		state = sk->sk_state;
 		protocol = socket_protocol_to_string(sk->sk_protocol);
 
-		seq_printf(m,
-			   "  [FD %u] Family: %-10s  Type: %-8s  State: %-12s  "
-			   "Proto: %-5s\n",
-			   fd, socket_family_to_string(family),
-			   socket_type_to_string(type),
+		seq_printf(m, "  [FD %u] Family: %-10s Type: %-8s State: %-12s Proto: %-5s\n", fd,
+			   socket_family_to_string(family), socket_type_to_string(type),
 			   socket_state_to_string(state), protocol);
 
 		if (sk->sk_protocol == IPPROTO_TCP) {
@@ -540,9 +510,9 @@ static void print_sockets(struct seq_file *m, struct task_struct *task)
 			tx_packets = (u64)READ_ONCE(tp->segs_out);
 			rx_bytes = (u64)READ_ONCE(tp->bytes_received);
 			tx_bytes = (u64)READ_ONCE(tp->bytes_sent);
-			traffic_len = format_tcp_traffic_line(
-				rx_packets, rx_bytes, tx_packets, tx_bytes,
-				traffic_line, sizeof(traffic_line));
+			traffic_len =
+				format_tcp_traffic_line(rx_packets, rx_bytes, tx_packets, tx_bytes,
+							traffic_line, sizeof(traffic_line));
 			if (traffic_len > 0)
 				seq_puts(m, traffic_line);
 		} else if (sk->sk_protocol == IPPROTO_UDP) {
@@ -550,9 +520,9 @@ static void print_sockets(struct seq_file *m, struct task_struct *task)
 			udp_tx_packets = skb_queue_len(&sk->sk_write_queue);
 			rx_bytes = (u64)sk_rmem_alloc_get(sk);
 			tx_bytes = (u64)READ_ONCE(sk->sk_wmem_queued);
-			traffic_len = format_udp_traffic_line(
-				udp_rx_packets, rx_bytes, udp_tx_packets,
-				tx_bytes, traffic_line, sizeof(traffic_line));
+			traffic_len = format_udp_traffic_line(udp_rx_packets, rx_bytes,
+							      udp_tx_packets, tx_bytes,
+							      traffic_line, sizeof(traffic_line));
 			if (traffic_len > 0)
 				seq_puts(m, traffic_line);
 		}
@@ -572,16 +542,11 @@ static void print_sockets(struct seq_file *m, struct task_struct *task)
 				saddr_h = ntohl(saddr);
 				daddr_h = ntohl(daddr);
 
-				seq_printf(m,
-					   "          Local:  %u.%u.%u.%u:%u",
-					   (saddr_h >> 24) & 0xFF,
-					   (saddr_h >> 16) & 0xFF,
-					   (saddr_h >> 8) & 0xFF,
-					   saddr_h & 0xFF, ntohs(sport));
-				seq_printf(m, "  Remote: %u.%u.%u.%u:%u\n",
-					   (daddr_h >> 24) & 0xFF,
-					   (daddr_h >> 16) & 0xFF,
-					   (daddr_h >> 8) & 0xFF,
+				seq_printf(m, "          Local:  %u.%u.%u.%u:%u",
+					   (saddr_h >> 24) & 0xFF, (saddr_h >> 16) & 0xFF,
+					   (saddr_h >> 8) & 0xFF, saddr_h & 0xFF, ntohs(sport));
+				seq_printf(m, "  Remote: %u.%u.%u.%u:%u\n", (daddr_h >> 24) & 0xFF,
+					   (daddr_h >> 16) & 0xFF, (daddr_h >> 8) & 0xFF,
 					   daddr_h & 0xFF, ntohs(dport));
 			}
 		} else if (family == AF_INET6 && sk->sk_prot) {
@@ -598,8 +563,7 @@ static void print_sockets(struct seq_file *m, struct task_struct *task)
 				for (i = 0; i < 8; i++) {
 					if (i > 0)
 						seq_puts(m, ":");
-					seq_printf(m, "%04x",
-						   ntohs(saddr6->s6_addr16[i]));
+					seq_printf(m, "%04x", ntohs(saddr6->s6_addr16[i]));
 				}
 				seq_printf(m, ":%u", ntohs(sport));
 
@@ -607,8 +571,7 @@ static void print_sockets(struct seq_file *m, struct task_struct *task)
 				for (i = 0; i < 8; i++) {
 					if (i > 0)
 						seq_puts(m, ":");
-					seq_printf(m, "%04x",
-						   ntohs(daddr6->s6_addr16[i]));
+					seq_printf(m, "%04x", ntohs(daddr6->s6_addr16[i]));
 				}
 				seq_printf(m, ":%u\n", ntohs(dport));
 			}
@@ -620,8 +583,7 @@ static void print_sockets(struct seq_file *m, struct task_struct *task)
 	if (socket_count == 0)
 		seq_puts(m, "  No open sockets\n");
 
-	seq_puts(m,
-		 "----------------------------------------------------------");
+	seq_puts(m, "----------------------------------------------------------");
 	seq_puts(m, "----------------------\n");
 }
 
@@ -684,28 +646,25 @@ static int proclens_module_show(struct seq_file *m, void *v)
 	/* BSS: uninitialized data between end_data and start_brk
 	 * May be zero-length in modern binaries
 	 */
-	compute_bss_range(task->mm->end_data, task->mm->start_brk, &bss_start,
-			  &bss_end);
+	compute_bss_range(task->mm->end_data, task->mm->start_brk, &bss_start, &bss_end);
 
 	/* Heap: brk-based heap from start_brk to current brk
 	 * Note: Does not include mmap-based allocations (arena heap)
 	 */
-	compute_heap_range(task->mm->start_brk, task->mm->brk, &heap_start,
-			   &heap_end);
+	compute_heap_range(task->mm->start_brk, task->mm->brk, &heap_start, &heap_end);
 
 	mmap_read_unlock(task->mm);
 
 	// now print the information we want to the det file
 	seq_printf(m, "Process ID:      %d\n", task->pid);
 	seq_printf(m, "Name:            %s\n", task->comm);
-	seq_printf(m, "CPU Usage:       %llu.%02llu%%\n",
-		   (usage_permyriad / 100), (usage_permyriad % 100));
+	seq_printf(m, "CPU Usage:       %llu.%02llu%%\n", (usage_permyriad / 100),
+		   (usage_permyriad % 100));
 	print_memory_pressure(m, task);
-	print_memory_layout(m, task, bss_start, bss_end, heap_start, heap_end,
-			    stack_start, stack_end, elf_base);
-	print_memory_layout_visualization(m, task, bss_start, bss_end,
-					  heap_start, heap_end, stack_start,
-					  stack_end);
+	print_memory_layout(m, task, bss_start, bss_end, heap_start, heap_end, stack_start,
+			    stack_end, elf_base);
+	print_memory_layout_visualization(m, task, bss_start, bss_end, heap_start, heap_end,
+					  stack_start, stack_end);
 	print_network_stats(m, task);
 	print_sockets(m, task);
 	print_io_stats(m, task);
@@ -748,8 +707,7 @@ static int proclens_module_threads_show(struct seq_file *m, void *v)
 	// clang-format on
 	rcu_read_unlock();
 
-	seq_puts(m,
-		 "----------------------------------------------------------");
+	seq_puts(m, "----------------------------------------------------------");
 	seq_puts(m, "----------------------\n");
 	seq_printf(m, "Total threads: %d\n", thread_count);
 
@@ -799,10 +757,7 @@ static int procfile_open(struct inode *inode, struct file *file)
 
 // when we cat elf file this function will be run (this is useless here)
 // because our info is in det file not here!
-static ssize_t procfile_read(struct file *file,
-			     char __user *buffer,
-			     size_t length,
-			     loff_t *offset)
+static ssize_t procfile_read(struct file *file, char __user *buffer, size_t length, loff_t *offset)
 {
 	static int finished;
 	char tmp[64];
@@ -828,10 +783,8 @@ static ssize_t procfile_read(struct file *file,
 }
 
 // most important function of elf! called when we write some characters into it
-static ssize_t procfile_write(struct file *file,
-			      const char __user *buffer,
-			      size_t length,
-			      loff_t *offset)
+static ssize_t
+procfile_write(struct file *file, const char __user *buffer, size_t length, loff_t *offset)
 {
 	char input_buf[sizeof(buff)];
 	size_t to_copy;
@@ -861,18 +814,16 @@ static int proclens_module_init(void)
 		return -ENOMEM;
 
 	// 0644 means owner read/write, others read-only
-	proclens_module_det_entry = proc_create(
-		"det", 0644, proclens_module_dir, &proclens_module_det_ops);
+	proclens_module_det_entry =
+		proc_create("det", 0644, proclens_module_dir, &proclens_module_det_ops);
 	// create proc file det with proclens_module_det_ops
 	pr_info("det initiated; /proc/proclens_module/det created\n");
-	proclens_module_pid_entry =
-		proc_create("pid", 0644, proclens_module_dir, &write_pops);
+	proclens_module_pid_entry = proc_create("pid", 0644, proclens_module_dir, &write_pops);
 	// create proc file pid with write_pops
 	pr_info("pid initiated; /proc/proclens_module/pid created\n");
 
 	proclens_module_threads_entry =
-		proc_create("threads", 0644, proclens_module_dir,
-			    &proclens_module_threads_ops);
+		proc_create("threads", 0644, proclens_module_dir, &proclens_module_threads_ops);
 	// create proc file threads with proclens_module_threads_ops
 	pr_info("threads initiated; /proc/proclens_module/threads created\n");
 
@@ -890,8 +841,7 @@ static void proclens_module_exit(void)
 	proc_remove(proclens_module_pid_entry);
 	pr_info("proclens_module exited; /proc/proclens_module/pid deleted\n");
 	proc_remove(proclens_module_threads_entry);
-	pr_info("proclens_module exited; /proc/proclens_module/threads "
-		"deleted\n");
+	pr_info("proclens_module exited; /proc/proclens_module/threads deleted\n");
 	proc_remove(proclens_module_dir);
 }
 

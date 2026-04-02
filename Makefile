@@ -163,10 +163,13 @@ format:
 	@echo "Formatting code with clang-format..."
 	@if command -v clang-format >/dev/null 2>&1; then \
 		for file in $(SRC_DIR)/*.c $(SRC_DIR)/*.h; do \
-			if [ -f "$$file" ]; then \
-				echo "Formatting $$file..."; \
-				clang-format -i $$file; \
-			fi \
+			case "$$file" in \
+				*.mod.c) ;; \
+				*) if [ -f "$$file" ]; then \
+					echo "Formatting $$file..."; \
+					clang-format -i $$file; \
+				fi ;; \
+			esac; \
 		done; \
 		echo "Code formatting complete!"; \
 	else \
@@ -178,9 +181,12 @@ format-check:
 	@echo "Checking code formatting..."
 	@if command -v clang-format >/dev/null 2>&1; then \
 		UNFORMATTED=$$(for file in $(SRC_DIR)/*.c $(SRC_DIR)/*.h; do \
-			if [ -f "$$file" ]; then \
-				clang-format -output-replacements-xml $$file | grep -q "<replacement " && echo "$$file"; \
-			fi \
+			case "$$file" in \
+				*.mod.c) ;; \
+				*) if [ -f "$$file" ]; then \
+					clang-format -output-replacements-xml $$file | grep -q "<replacement " && echo "$$file"; \
+				fi ;; \
+			esac; \
 		done); \
 		if [ -n "$$UNFORMATTED" ]; then \
 			echo "The following files need formatting:"; \
