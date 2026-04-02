@@ -50,141 +50,44 @@ jobs:
 
       - name: Validate release labels
         if: github.event_name == 'pull_request'
+        env:
+          RELEASE_MAJOR: ${{ contains(github.event.pull_request.labels.*.name, 'release:major') }}
+          RELEASE_MINOR: ${{ contains(github.event.pull_request.labels.*.name, 'release:minor') }}
+          RELEASE_PATCH: ${{ contains(github.event.pull_request.labels.*.name, 'release:patch') }}
         run: |
-          MAJOR="${{ contains(github.event.pull_request.labels.*.name, 'release:major') }}"
-          MINOR="${{ contains(github.event.pull_request.labels.*.name, 'release:minor') }}"
-          PATCH="${{ contains(github.event.pull_request.labels.*.name, 'release:patch') }}"
-          
-          COUNT=0
-          [[ "$MAJOR" == "true" ]] && COUNT=$((COUNT + 1))
-          [[ "$MINOR" == "true" ]] && COUNT=$((COUNT + 1))
-          [[ "$PATCH" == "true" ]] && COUNT=$((COUNT + 1))
-          
-          if [[ $COUNT -gt 1 ]]; then
-            echo "Error: Multiple release labels detected. Only one release label (major, minor, or patch) is allowed."
-            exit 1
-          fi
-          echo "Label validation passed: $COUNT release label(s) found"
+          bash .github/scripts/release/validate-release-labels.sh
 
       - name: Determine version bump type
         id: version_type
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          INPUT_VERSION_TYPE: ${{ inputs.version_type }}
+          RELEASE_MAJOR: ${{ contains(github.event.pull_request.labels.*.name, 'release:major') }}
+          RELEASE_MINOR: ${{ contains(github.event.pull_request.labels.*.name, 'release:minor') }}
+          RELEASE_PATCH: ${{ contains(github.event.pull_request.labels.*.name, 'release:patch') }}
         run: |
-          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
-            echo "type=${{ inputs.version_type }}" >> $GITHUB_OUTPUT
-          elif [[ "${{ contains(github.event.pull_request.labels.*.name, 'release:major') }}" == "true" ]]; then
-            echo "type=major" >> $GITHUB_OUTPUT
-          elif [[ "${{ contains(github.event.pull_request.labels.*.name, 'release:minor') }}" == "true" ]]; then
-            echo "type=minor" >> $GITHUB_OUTPUT
-          elif [[ "${{ contains(github.event.pull_request.labels.*.name, 'release:patch') }}" == "true" ]]; then
-            echo "type=patch" >> $GITHUB_OUTPUT
-          else
-            echo "type=none" >> $GITHUB_OUTPUT
-          fi
+          bash .github/scripts/release/determine-version-type.sh
 
       - name: Get current version
         id: current_version
         run: |
-          # Try to get the latest tag, default to 0.0.0 if no tags exist
-          LATEST_TAG=$(git describe --tags --abbrev=0 2>/dev/null || echo "v0.0.0")
-          echo "tag=$LATEST_TAG" >> $GITHUB_OUTPUT
-          # Remove 'v' prefix if present
-          VERSION=${LATEST_TAG#v}
-          echo "version=$VERSION" >> $GITHUB_OUTPUT
-          echo "Current version: $VERSION"
+          bash .github/scripts/release/get-current-version.sh
 
       - name: Calculate new version
         id: new_version
+        env:
+          CURRENT_VERSION: ${{ steps.current_version.outputs.version }}
+          VERSION_TYPE: ${{ steps.version_type.outputs.type }}
         run: |
-          CURRENT="${{ steps.current_version.outputs.version }}"
-          TYPE="${{ steps.version_type.outputs.type }}"
-          
-          # Parse current version
-          IFS='.' read -r -a VERSION_PARTS <<< "$CURRENT"
-          MAJOR="${VERSION_PARTS[0]}"
-          MINOR="${VERSION_PARTS[1]}"
-          PATCH="${VERSION_PARTS[2]}"
-          
-          # Bump version based on type
-          case "$TYPE" in
-            major)
-              MAJOR=$((MAJOR + 1))
-              MINOR=0
-              PATCH=0
-              ;;
-            minor)
-              MINOR=$((MINOR + 1))
-              PATCH=0
-              ;;
-            patch)
-              PATCH=$((PATCH + 1))
-              ;;
-            *)
-              echo "No valid version type found"
-              exit 1
-              ;;
-          esac
-          
-          NEW_VERSION="$MAJOR.$MINOR.$PATCH"
-          echo "version=$NEW_VERSION" >> $GITHUB_OUTPUT
-          echo "tag=v$NEW_VERSION" >> $GITHUB_OUTPUT
-          echo "New version: $NEW_VERSION"
+          bash .github/scripts/release/calculate-new-version.sh
 
       - name: Create release notes
+        env:
+          VERSION: ${{ steps.new_version.outputs.version }}
+          BUMP_TYPE: ${{ steps.version_type.outputs.type }}
+          EVENT_NAME: ${{ github.event_name }}
         run: |
-          VERSION="${{ steps.new_version.outputs.version }}"
-          BUMP_TYPE="${{ steps.version_type.outputs.type }}"
-          
-          # Create release notes
-          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
-            # Use PR metadata from event payload to avoid shell parsing issues
-            PR_TITLE=$(jq -r '.pull_request.title // ""' "$GITHUB_EVENT_PATH")
-            PR_BODY=$(jq -r '.pull_request.body // ""' "$GITHUB_EVENT_PATH")
-
-            {
-              printf '## Changelog\n\n'
-              printf '### %s\n\n' "$PR_TITLE"
-              printf '%s\n\n' "$PR_BODY"
-              printf '\n---\n'
-              printf '**Version**: %s | **Type**: %s\n\n' "$VERSION" "$BUMP_TYPE"
-              printf '## Binary package includes\n\n'
-              printf -- '- `amd64/proclens_module.ko`\n'
-              printf -- '- `amd64/proclens`\n'
-              printf -- '- `arm64/proclens_module.ko`\n'
-              printf -- '- `arm64/proclens`\n'
-              printf -- '- `install.sh`\n'
-              printf -- '- `uninstall.sh`\n'
-              printf -- '- `README-QUICKSTART.md`\n\n'
-              printf 'Quick Start summary:\n\n'
-              printf -- '- Supports Linux kernel `%s.x`\n' "${TARGET_KERNEL_BASE}"
-              printf -- '- Includes binaries for `amd64` (`x86_64`) and `arm64` (`aarch64`)\n'
-              printf -- '- Install or update: `sudo ./install.sh`\n'
-              printf -- '- Run user tool: `sudo proclens`\n'
-              printf -- '- Uninstall: `sudo ./uninstall.sh`\n'
-            } > /tmp/release_notes.md
-          else
-            # Manual workflow dispatch
-            {
-              printf '## Changelog\n\n'
-              printf -- '- Manual release triggered via workflow dispatch.\n\n'
-              printf '**Version**: %s | **Type**: %s\n\n' "$VERSION" "$BUMP_TYPE"
-              printf '## Binary package includes\n\n'
-              printf -- '- `amd64/proclens_module.ko`\n'
-              printf -- '- `amd64/proclens`\n'
-              printf -- '- `arm64/proclens_module.ko`\n'
-              printf -- '- `arm64/proclens`\n'
-              printf -- '- `install.sh`\n'
-              printf -- '- `uninstall.sh`\n'
-              printf -- '- `README-QUICKSTART.md`\n\n'
-              printf 'Quick Start summary:\n\n'
-              printf -- '- Supports Linux kernel `%s.x`\n' "${TARGET_KERNEL_BASE}"
-              printf -- '- Includes binaries for `amd64` (`x86_64`) and `arm64` (`aarch64`)\n'
-              printf -- '- Install or update: `sudo ./install.sh`\n'
-              printf -- '- Run user tool: `sudo proclens`\n'
-              printf -- '- Uninstall: `sudo ./uninstall.sh`\n'
-            } > /tmp/release_notes.md
-          fi
-          
-          cat /tmp/release_notes.md
+          bash .github/scripts/release/create-release-notes.sh
 
       - name: Upload release metadata
         uses: actions/upload-artifact@v4
@@ -221,25 +124,7 @@ jobs:
           TARGET_ARCH: ${{ matrix.arch }}
           RELEASE_TAG: ${{ needs.prepare_release.outputs.release_tag }}
         run: |
-          set -euo pipefail
-
-          KDIR=$(ls -d /usr/src/linux-headers-${TARGET_KERNEL_BASE}-*-generic 2>/dev/null \
-                 | sort -V | tail -n 1)
-
-          if [[ -z "${KDIR:-}" ]]; then
-            echo "No Ubuntu ${TARGET_KERNEL_BASE}.x generic kernel headers found"
-            exit 1
-          fi
-
-          echo "Using kernel headers: $KDIR"
-
-          make KDIR="$KDIR" PROCLENS_VERSION="$RELEASE_TAG" clean
-          make KDIR="$KDIR" PROCLENS_VERSION="$RELEASE_TAG" module
-          make PROCLENS_VERSION="$RELEASE_TAG" user
-
-          mkdir -p "out/${TARGET_ARCH}"
-          cp build/proclens_module.ko "out/${TARGET_ARCH}/proclens_module.ko"
-          cp build/proclens "out/${TARGET_ARCH}/proclens"
+          bash .github/scripts/release/build-target-binaries.sh
 
       - name: Upload architecture binaries
         uses: actions/upload-artifact@v4
@@ -279,234 +164,13 @@ jobs:
           RELEASE_TAG: ${{ needs.prepare_release.outputs.release_tag }}
           RELEASE_VERSION: ${{ needs.prepare_release.outputs.release_version }}
         run: |
-          set -euo pipefail
-
-          PKG_NAME="proclens_module-binaries-${RELEASE_TAG}-linux-${TARGET_KERNEL_BASE}"
-          PKG_DIR="dist/${PKG_NAME}"
-          ARCHIVE_PATH="dist/${PKG_NAME}.tar.gz"
-
-          mkdir -p "$PKG_DIR/amd64" "$PKG_DIR/arm64"
-
-          cp dist/artifacts/binaries-amd64/proclens_module.ko "$PKG_DIR/amd64/"
-          cp dist/artifacts/binaries-amd64/proclens "$PKG_DIR/amd64/"
-          cp dist/artifacts/binaries-arm64/proclens_module.ko "$PKG_DIR/arm64/"
-          cp dist/artifacts/binaries-arm64/proclens "$PKG_DIR/arm64/"
-
-          chmod +x "$PKG_DIR/amd64/proclens" "$PKG_DIR/arm64/proclens"
-
-          cat > "$PKG_DIR/install.sh" << 'EOF'
-          #!/usr/bin/env bash
-          set -euo pipefail
-
-          usage() {
-            cat << 'USAGE'
-          Usage: sudo ./install.sh [--arch amd64|arm64]
-
-          Installs or updates both components:
-            - Kernel module: /lib/modules/$(uname -r)/extra/proclens_module.ko
-            - User binary:   /usr/local/bin/proclens
-
-          Behavior:
-            - Detects architecture automatically (x86_64 -> amd64, aarch64 -> arm64)
-            - If module is already loaded, unloads it first
-            - Replaces previously installed binaries (update-in-place)
-            - Runs depmod and loads module with modprobe (fallback: insmod)
-          USAGE
-          }
-
-          if [[ "${EUID}" -ne 0 ]]; then
-            echo "Please run as root: sudo ./install.sh"
-            exit 1
-          fi
-
-          SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-          ARCH=""
-          if [[ $# -gt 0 ]]; then
-            case "$1" in
-              --arch)
-                ARCH="${2:-}"
-                shift 2
-                ;;
-              -h|--help)
-                usage
-                exit 0
-                ;;
-              *)
-                echo "Unknown option: $1"
-                usage
-                exit 1
-                ;;
-            esac
-          fi
-
-          if [[ -z "$ARCH" ]]; then
-            case "$(uname -m)" in
-              x86_64)
-                ARCH="amd64"
-                ;;
-              aarch64|arm64)
-                ARCH="arm64"
-                ;;
-              *)
-                echo "Unsupported architecture: $(uname -m)"
-                echo "Use --arch amd64|arm64"
-                exit 1
-                ;;
-            esac
-          fi
-
-          if [[ "$ARCH" != "amd64" && "$ARCH" != "arm64" ]]; then
-            echo "Invalid --arch value: $ARCH"
-            echo "Use amd64 or arm64"
-            exit 1
-          fi
-
-          SRC_MOD="$SCRIPT_DIR/$ARCH/proclens_module.ko"
-          SRC_BIN="$SCRIPT_DIR/$ARCH/proclens"
-
-          if [[ ! -f "$SRC_MOD" || ! -f "$SRC_BIN" ]]; then
-            echo "Missing release binaries for arch '$ARCH'"
-            exit 1
-          fi
-
-          KREL="$(uname -r)"
-          MOD_DIR="/lib/modules/$KREL/extra"
-          MOD_DST="$MOD_DIR/proclens_module.ko"
-          BIN_DST="/usr/local/bin/proclens"
-
-          echo "Installing ProcLens binaries for arch: $ARCH"
-          echo "Kernel release: $KREL"
-
-          if lsmod | grep -q '^proclens_module '; then
-            echo "Module is currently loaded; unloading old version..."
-            modprobe -r proclens_module || rmmod proclens_module
-          fi
-
-          mkdir -p "$MOD_DIR"
-          install -m 0644 "$SRC_MOD" "$MOD_DST"
-          install -m 0755 "$SRC_BIN" "$BIN_DST"
-
-          depmod "$KREL"
-
-          if ! insmod "$MOD_DST"; then
-            echo "insmod failed; trying modprobe..."
-            modprobe proclens_module
-          fi
-
-          echo "Install/update complete."
-          echo "User binary: $BIN_DST"
-          echo "Module file: $MOD_DST"
-          echo "Check module version: cat /sys/module/proclens_module/version"
-          echo "Check user version:   sudo proclens --version"
-          EOF
-
-          cat > "$PKG_DIR/uninstall.sh" << 'EOF'
-          #!/usr/bin/env bash
-          set -euo pipefail
-
-          if [[ "${EUID}" -ne 0 ]]; then
-            echo "Please run as root: sudo ./uninstall.sh"
-            exit 1
-          fi
-
-          KREL="$(uname -r)"
-          MOD_DST="/lib/modules/$KREL/extra/proclens_module.ko"
-          BIN_DST="/usr/local/bin/proclens"
-
-          if lsmod | grep -q '^proclens_module '; then
-            echo "Unloading proclens_module module..."
-            modprobe -r proclens_module || rmmod proclens_module || true
-          fi
-
-          rm -f "$MOD_DST"
-          rm -f "$BIN_DST"
-          depmod "$KREL"
-
-          echo "Uninstall complete."
-          EOF
-
-          chmod +x "$PKG_DIR/install.sh" "$PKG_DIR/uninstall.sh"
-
-          cat > "$PKG_DIR/README-QUICKSTART.md" << 'EOF'
-          # Quick Start (Linux kernel __TARGET_KERNEL_BASE__.x)
-
-          This package contains prebuilt binaries for:
-          - amd64 (x86_64)
-          - arm64 (aarch64)
-
-          Version: __RELEASE_VERSION__
-
-          ## 1) Choose architecture
-
-          On target machine:
-
-          ```bash
-          uname -m
-          ```
-
-          Use:
-          - `amd64/` for `x86_64`
-          - `arm64/` for `aarch64`
-
-          ## 2) Install or update
-
-          ```bash
-          sudo ./install.sh
-          ```
-
-          The installer:
-          - Installs/updates `proclens` to `/usr/local/bin/proclens`
-          - Installs/updates `proclens_module.ko` to `/lib/modules/$(uname -r)/extra/proclens_module.ko`
-          - Unloads an already-loaded `proclens_module` before update
-          - Runs `depmod` and loads the module
-
-          Optional (override architecture selection):
-
-          ```bash
-          sudo ./install.sh --arch amd64
-          # or
-          sudo ./install.sh --arch arm64
-          ```
-
-          If Secure Boot is enabled, module signing may be required.
-
-          ## 3) Run user program
-
-          ```bash
-          sudo proclens --version
-          sudo proclens
-          ```
-
-          ## 4) Uninstall
-
-          ```bash
-          sudo ./uninstall.sh
-          ```
-          EOF
-
-          sed -i \
-            -e "s/__TARGET_KERNEL_BASE__/${TARGET_KERNEL_BASE}/g" \
-            -e "s/__RELEASE_VERSION__/${RELEASE_VERSION}/g" \
-            "$PKG_DIR/README-QUICKSTART.md"
-
-          tar -czf "$ARCHIVE_PATH" -C dist "$PKG_NAME"
-          sha256sum "$ARCHIVE_PATH" > "${ARCHIVE_PATH}.sha256"
-
-          echo "archive_path=$ARCHIVE_PATH" >> "$GITHUB_OUTPUT"
-          echo "checksum_path=${ARCHIVE_PATH}.sha256" >> "$GITHUB_OUTPUT"
+          bash .github/scripts/release/create-bundle-package.sh
 
       - name: Create and push tag
         env:
           TAG: ${{ needs.prepare_release.outputs.release_tag }}
         run: |
-          if git rev-parse "$TAG" >/dev/null 2>&1; then
-            echo "Tag $TAG already exists, skipping tag creation"
-            exit 0
-          fi
-
-          git tag -a "$TAG" -m "Release $TAG"
-          git push origin "$TAG"
+          bash .github/scripts/release/create-and-push-tag.sh
 
       - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
