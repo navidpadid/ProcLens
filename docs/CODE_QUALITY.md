@@ -25,7 +25,7 @@ CPPCHECK_JOBS=8 make cppcheck  # Optional: control cppcheck parallelism
 
 **Features**:
 - 8-space tabs (kernel standard)
-- 80-column line limit
+- 100-column line limit (relaxed kernel baseline used by this project)
 - Linux brace style
 - Consistent spacing and alignment
 
@@ -39,7 +39,7 @@ CPPCHECK_JOBS=8 make cppcheck  # Optional: control cppcheck parallelism
 
 **Checks**:
 - Indentation and spacing rules
-- Line length limits (80 columns preferred)
+- Line length limits (warns above 80 columns; project uses a 100-column limit)
 - Function declaration style
 - Comment formatting (/* */ style)
 - Macro usage patterns
@@ -97,7 +97,7 @@ git commit --no-verify -m "message"
 
 **Follow Linux Kernel Coding Style:**
 - Use tabs (8 spaces), not spaces for indentation
-- 80 column limit for code
+- 100 column limit for code (project baseline; checkpatch warns above 80)
 - Opening brace on same line (except functions)
 - Space after keywords: `if (`, `while (`, `for (`
 - No space after function names: `function(arg)`
