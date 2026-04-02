@@ -19,6 +19,7 @@
 - [Release Binaries](#release-binaries)
 - [Makefile Targets](#makefile-targets)
 - [Testing](#testing)
+- [Architecture Diagram](#architecture-diagram)
 - [Project Structure](#project-structure)
 - [Output Notes](#output-notes)
 - [Code Quality](#code-quality)
@@ -190,6 +191,68 @@ Builds the multi-threaded test program, installs the module, and validates outpu
 sudo ./e2e/qemu-setup.sh    # One-time setup
 sudo ./e2e/qemu-run.sh      # Start VM
 sudo ./e2e/qemu-test.sh     # Run automated tests
+```
+
+## Architecture Diagram
+
+```mermaid
+flowchart TB
+    subgraph UserSpace[User Space]
+        User[User]
+        CLI["<b>proclens</b> CLI<br/>one-shot · live dashboard"]
+        Tests[Unit tests and QEMU E2E]
+        User --> CLI
+        Tests --> CLI
+    end
+
+    subgraph ProcFS[ProcFS Interface]
+        PID["<b>/proc/proclens_module/pid</b><br/>write target PID"]
+        DET["<b>/proc/proclens_module/det</b><br/>read process details"]
+        THR["<b>/proc/proclens_module/threads</b><br/>read thread details"]
+    end
+
+    subgraph KernelModule[Kernel Module: proclens_module]
+        PIDBuf[PID buffer and proc write handler]
+        Show["<b>proclens_module_show</b><br/>seq_file render path"]
+        ThreadShow["<b>proclens_module_threads_show</b><br/>thread listing render path"]
+        Memory["<b>Memory section builders</b><br/>pressure · layout · visualization"]
+        Network["<b>Network + socket builders</b><br/>brief stats · open sockets"]
+        IO[I/O stats builder]
+        ThreadInfo[Thread info line builder]
+    end
+
+    subgraph KernelData[Kernel Data Sources]
+        Task["<b>task_struct</b><br/>pid · comm · utime · stime · faults"]
+        MM["<b>mm_struct</b> + VMA maple tree<br/>code · data · bss<br/>heap · stack · ELF base"]
+        Signal["<b>signal_struct</b><br/>oom_score_adj"]
+        Files["<b>files_struct</b> + fdtable<br/>process file descriptors"]
+        Sock["<b>socket / sock</b><br/><b>tcp_sock / inet_sock</b><br/>protocol · state · addresses · traffic"]
+        IOAcct["<b>task I/O accounting</b><br/>rchar · wchar · syscr · syscw<br/>storage bytes"]
+        Threads["<b>thread group</b> + sched state<br/>priority · nice · cpumask"]
+    end
+
+    CLI -->|write selected PID| PID
+    CLI -->|read details| DET
+    CLI -->|read thread list| THR
+    PID --> PIDBuf
+    DET --> Show
+    THR --> ThreadShow
+    PIDBuf --> Show
+    PIDBuf --> ThreadShow
+    Show --> Memory
+    Show --> Network
+    Show --> IO
+    ThreadShow --> ThreadInfo
+    Memory --> Task
+    Memory --> MM
+    Memory --> Signal
+    Network --> Files
+    Network --> Sock
+    IO --> IOAcct
+    IO --> Task
+    ThreadInfo --> Threads
+    ThreadInfo --> Task
+    KernelModule -->|formatted seq_file output| ProcFS
 ```
 
 ## Project Structure
