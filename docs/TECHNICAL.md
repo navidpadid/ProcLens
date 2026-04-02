@@ -162,6 +162,13 @@ Notes:
 ```
 Non-interactive mode - write PID once and print both process and thread information.
 
+Other supported invocations:
+
+```bash
+./build/proclens --help    # or -h: print usage and exit
+./build/proclens --version # or -v: print version string and exit
+```
+
 ### Environment Override
 
 You can override the proc directory for testing:

@@ -138,3 +138,15 @@ git commit -m "Your message"
 - `make check` is a convenience aggregator for static analysis output.
 - Some tool invocations in the Makefile are best-effort (`|| true`) to keep developer flow smooth.
 - For release/PR readiness, treat any checkpatch/sparse/cppcheck findings as actionable and resolve them.
+
+### CI Gate Summary
+
+| Target | CI behavior | Notes |
+|---|---|---|
+| `make format-check` | **Hard gate** — CI fails if code is not formatted | Run `make format` before opening a PR |
+| `make checkpatch` | Soft gate (`continue-on-error`) | Findings are visible but do not block merge |
+| `make cppcheck` | Soft gate (`continue-on-error`) | Findings are visible but do not block merge |
+| `make sparse` | Soft gate (`continue-on-error`) | Findings are visible but do not block merge |
+
+A green CI run does **not** guarantee zero checkpatch/cppcheck/sparse findings.
+Always read tool output directly for kernel-file regressions.
