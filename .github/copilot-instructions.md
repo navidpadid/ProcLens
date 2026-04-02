@@ -199,6 +199,8 @@ Run sequence:
   https://www.kernel.org/doc/html/latest/
 - Project docs:
   `docs/*.md`
+- System architecture diagram (Mermaid, procfs flow + kernel data sources):
+  `README.md` — Architecture Diagram section
 
 ---
 
