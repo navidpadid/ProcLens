@@ -1,282 +1,207 @@
-# GitHub Copilot Instructions for Kernel Module Project
+# GitHub Copilot Instructions for ProcLens
 
-## Project Overview
+## Project Snapshot
 
-This is a Linux kernel module project that provides process information through `/proc/proclens_module/`. The module displays detailed process information including memory mappings, CPU usage, memory pressure statistics, and ELF binary details.
+ProcLens is a hybrid project:
 
-Current output includes memory pressure/layout, brief network stats, open sockets,
-per-process I/O statistics, and thread information.
+- Linux kernel module exposing process data via `/proc/proclens_module/`
+- Userspace CLI (`proclens`) for one-shot and live monitoring views
+- Unit, static-analysis, and QEMU-based end-to-end test workflows
 
-## Code Style and Quality Standards
+The module currently reports memory pressure/layout, network stats, open sockets,
+per-process I/O statistics, ELF metadata, and thread information.
 
-### Kernel Coding Style (HIGHEST PRIORITY)
+## Architecture and Key Files
 
-**CRITICAL**: Kernel module files (`src/proclens_module.c`, `src/proclens_module.h`) MUST pass
-`make checkpatch` with zero errors and zero warnings.
+### Kernel Module (`src/proclens_module.c`, `src/proclens_module.h`)
 
-- Follow Linux kernel coding style strictly
-- Use tabs for indentation (width: 8)
-- Maximum line length: 100 characters (kernel relaxed standard)
-- Opening braces on the same line for structs, functions use K&R style
-- No spaces inside parentheses: `if (condition)` not `if ( condition )`
-- Use `/* */` for comments, not `//` in kernel code
-- Variable declarations at the beginning of code blocks
+- `/proc/proclens_module/pid` accepts a PID selection
+- `/proc/proclens_module/det` prints process details
+- `/proc/proclens_module/threads` prints thread details
+- Main render path: memory, network, sockets, I/O, and thread sections
 
-### Special Formatting Rules
+### Userspace CLI (`src/proclens.c`, `src/proclens.h`)
 
-When using macros like `for_each_thread`, the opening brace style may conflict with
-`clang-format`. Use formatting disable pragmas when needed:
+- One-shot mode for a specific PID
+- Live mode dashboard with section filtering and refresh loop
+- Uses procfs endpoints provided by the kernel module
+
+### Tests
+
+- `src/proclens_module_tests.c`: helper-focused unit tests for module helpers
+- `src/proclens_tests.c`: userspace/helper unit tests
+- `src/test_multithread.c`: multithreaded runtime behavior test
+
+### Documentation
+
+- `README.md`: user-facing overview, install, usage
+- `docs/TECHNICAL.md`: implementation details
+- `docs/TESTING.md`: test strategy and commands
+- `docs/CODE_QUALITY.md`: quality tooling details
+- `docs/SCRIPTS.md`: QEMU workflow details
+- `docs/RELEASE.md`: release process and labels
+
+## Code Style and Standards
+
+### Kernel Coding Priority
+
+**CRITICAL**: `src/proclens_module.c` and `src/proclens_module.h` must stay
+checkpatch-clean (0 errors, 0 warnings) for release-quality changes.
+
+- Use Linux kernel coding style
+- Use tabs for kernel C indentation (tab width 8)
+- Treat 100 columns as the project baseline
+- Keep kernel naming in snake_case
+- Prefer `/* */` comments in kernel code
+
+### Header and Helper Rules
+
+- `src/proclens_module.h` contains helpers used by kernel and userspace tests
+- Keep helpers deterministic and side-effect free when possible
+- Guard kernel-only functionality with `#ifdef __KERNEL__`
+- Preserve API/format contracts used by unit tests (exact output strings matter)
+
+## Formatting and Checkpatch Interoperability
+
+This repository uses `clang-format`, but checkpatch has stricter opinions in some
+areas. Preserve checkpatch-sensitive formatting in kernel files when needed.
+
+Use local formatting guards for known conflict zones:
 
 ```c
 /* clang-format off */
-for_each_thread(task, thread) {
-	/* code here */
-}
+/* checkpatch-sensitive code */
 /* clang-format on */
 ```
 
-### Code Quality Tools
+Examples of sensitive patterns:
 
-Run these before every commit:
+- String formatting lines where split literals trigger checkpatch warnings
+- Multi-line call layout where checkpatch flags continuation style
 
-1. `make format` - Auto-format code with clang-format
-2. `make checkpatch` - Validate against kernel coding standards (MUST PASS)
-3. `make sparse` - Static analysis for kernel code
-4. `make cppcheck` - Additional static analysis
+## Build, Test, and Quality Commands
 
-The pre-commit hook automatically runs format-check and cppcheck.
+Use these commands during development:
 
-`make checkpatch` in this repository scans both kernel and userspace files. For release
-quality, treat warnings/errors in `src/proclens_module.c` and `src/proclens_module.h`
-as blocking, and triage userspace warnings separately.
+1. `make clean`
+2. `make all`
+3. `make unit`
+4. `make checkpatch`
+5. `make sparse`
+6. `make cppcheck`
+7. `make check`
 
-## File Organization
+Additional useful targets:
 
-### Source Files (`src/`)
+- `make module`
+- `make user`
+- `make build-multithread`
+- `make run-multithread`
+- `make format`
+- `make format-check`
 
-- `proclens_module.c` / `proclens_module.h` - Main kernel module and shared helpers
-- `proclens_module_tests.c` - Unit tests for proclens_module helpers
-- `proclens.c` / `proclens.h` - Control utility and helpers
-- `proclens_tests.c` - Unit tests for proclens helpers
-- `test_multithread.c` - Multi-threaded test application
+## Enforcement Reality (Important)
 
-### Documentation (`docs/`)
+`make checkpatch`, `make sparse`, and `make cppcheck` currently mask non-zero
+exits in the Makefile. Also, CI marks checkpatch/cppcheck/sparse as
+`continue-on-error`.
 
-- `TECHNICAL.md` - Architecture and implementation details
-- `TESTING.md` - Test strategy and coverage
-- `CODE_QUALITY.md` - Code quality tools and standards
-- `SCRIPTS.md` - E2E testing and QEMU workflows
-- `RELEASE.md` - Release process and versioning
+Implication:
 
-## Kernel Module Development Guidelines
-
-### Memory Access Patterns
-
-- Always use `get_task_mm()` and `mmput()` when accessing task memory management
-- Check for NULL before dereferencing mm pointers: `if (mm)`
-- Use `get_mm_counter()` for RSS statistics (MM_FILEPAGES, MM_ANONPAGES, etc.)
-- Lock appropriately when accessing task structures
-
-### String Formatting
-
-- Use `seq_printf()` for /proc file output
-- Use `snprintf()` for userspace utilities
-- Always check buffer boundaries
-- Format consistently: use tables, align columns with spacing
-
-### Error Handling
-
-- Return appropriate error codes (-ENOMEM, -EFAULT, -EINVAL, etc.)
-- Clean up resources on error paths
-- Use `pr_err()`, `pr_warn()`, `pr_info()` for kernel logging
-- Check return values from all kernel API calls
-
-### Header Files
-
-- `proclens_module.h` contains helper functions that work in BOTH kernel and userspace
-- Use `#ifdef __KERNEL__` to separate kernel-only code
-- Keep helpers pure (no side effects) for testability
-- Add comprehensive documentation comments for public functions
+- Green `make check` or CI does **not** automatically mean style/analysis clean
+- Always read tool output directly for kernel-file regressions
+- Treat kernel-file checkpatch findings as blocking even if command exits 0
 
 ## Testing Requirements
 
 ### Unit Tests
 
-When adding new helper functions to headers:
-- Add corresponding unit tests in `*_tests.c` files
-- Test edge cases: zero, negative, maximum values
-- Test boundary conditions
-- Aim for 100% coverage of helper functions
-- Use descriptive test names: `test_calculate_rss_pages_zero_counters()`
+When changing helper behavior or output formats:
 
-### Integration Tests
+- Update/add tests in `src/proclens_module_tests.c` or `src/proclens_tests.c`
+- Cover edge cases and division-by-zero behavior
+- Keep expectations aligned with exact output formatting where asserted
 
-- Update `e2e/qemu-test.sh` when adding new output fields
-- Test should validate presence of new sections in module output
-- Use grep patterns to match expected output format
+### Integration / E2E
 
-### Multi-threaded Testing
+When adding output fields/sections:
 
-- Use `test_multithread.c` to validate behavior under concurrent access
-- Build with `make build-multithread`
-- Run with `make run-multithread`
+1. Update kernel output implementation
+2. Update userspace filtering/rendering if applicable
+3. Update `e2e/qemu-test.sh` assertions
+4. Update docs (`README.md`, `docs/TECHNICAL.md`, `docs/TESTING.md`)
 
-## Common Patterns
+## Kernel Development Guidance
 
-### Adding New Statistics
+### Memory Access and Locking
 
-1. Add calculation helper to header file (e.g., `proclens_module.h`)
-2. Add unit tests for the helper
-3. Call helper in kernel module print function
-4. Update `e2e/qemu-test.sh` to validate output
-5. Update `docs/TECHNICAL.md` with new field documentation
-6. Update `docs/TESTING.md` with test coverage info
-7. Update `README.md` to reflect new features in the features list and example output
+- Null-check task/mm pointers before dereference
+- Follow existing codebase locking patterns when reading task memory maps
+- If accessing mm beyond local locked scope, use proper lifetime management
+  (`get_task_mm()`/`mmput()`) and document why
 
-### Memory Pressure Statistics
+### Error Handling
 
-Current implementation includes:
-- RSS breakdown (anonymous, file-backed, shared memory pages)
-- Virtual size (VSZ)
-- Swap usage
-- Page faults (major/minor)
-- OOM score adjustment
+- Return appropriate kernel/user error codes
+- Validate all kernel API return values
+- Keep cleanup paths explicit and complete
+- Use `pr_err()`, `pr_warn()`, `pr_info()` consistently
 
-Use these as examples when adding similar statistics.
+## QEMU E2E Workflow
 
-### I/O Statistics
+Scripts in `e2e/`:
 
-Current implementation includes:
-- Syscall byte counters (`rchar`, `wchar`) and syscall counts (`syscr`, `syscw`)
-- Storage byte counters (`read_bytes`, `write_bytes`, `cancelled_write_bytes`)
-- Derived metrics (`avg_read_bytes_per_syscall`,
-  `avg_write_bytes_per_syscall`, `io_intensity`)
+- `qemu-setup.sh`: prepares image and host dependencies
+- `qemu-run.sh`: starts VM (KVM when available, TCG fallback)
+- `qemu-test.sh`: copies source into VM, builds, and validates output
 
-When extending I/O output:
-1. Add or update helper functions in `proclens_module.h`
-2. Keep division-by-zero handling explicit in helper logic
-3. Update `e2e/qemu-test.sh` checks for new fields
-4. Keep `proclens` view filtering in sync (section key `4` for I/O)
+Run sequence:
 
-## Build System (Makefile)
+1. `sudo ./e2e/qemu-setup.sh`
+2. `sudo ./e2e/qemu-run.sh`
+3. `sudo ./e2e/qemu-test.sh`
 
-### Target Categories
+## Release Workflow
 
-- **Build**: `all`, `module`, `user`, `build-multithread`
-- **Run**: `install`, `uninstall`, `test`
-- **Test**: `unit`, `run-multithread`
-- **Quality**: `check`, `format`, `format-check`, `checkpatch`, `sparse`, `cppcheck`
-- **Cleanup**: `clean`
+- Releases are label-driven on merged PRs or manual dispatch
+- Exactly one release label: `release:major`, `release:minor`, or `release:patch`
+- `not-a-release` skips release creation
+- Use the PR template and provide clean release notes
 
-### Adding New Targets
+## Common Gotchas
 
-- Group by category in help output
-- Use descriptive names with hyphens
-- Add `@echo` for user feedback
-- Check for required tools before running
+- `make format`/`format-check` intentionally skip generated `*.mod.c` files
+- Checkpatch can warn on split string literals even if clang-format is happy
+- Unit tests can fail on whitespace/spacing changes in formatted output strings
+- Some tools print warnings but still return success due to Makefile design
 
-## Development Workflow
-
-### Setting Up
-
-1. Dev container automatically installs kernel headers via `.devcontainer/post-create.sh`
-2. Git hooks installed automatically (runs format-check and cppcheck)
-3. Kernel headers match running kernel version
-
-### Before Committing
-
-```bash
-make clean
-make all
-make unit
-make checkpatch  # MUST PASS
-make sparse
-make cppcheck
-```
-
-### Creating Pull Requests
-
-- Use the PR template (`.github/PULL_REQUEST_TEMPLATE.md`)
-- Fill out the "Release Notes" section with clean, user-facing descriptions
-- DO NOT paste command output or test logs in release notes
-- Add appropriate release label: `release:major`, `release:minor`, `release:patch`, or `not-a-release`
-- Only one release label per PR
-
-## What to Avoid
-
-### DON'T
-
-- Mix kernel and userspace code without `#ifdef __KERNEL__`
-- Use `//` comments in kernel code
-- Access task structures without proper locking
-- Dereference pointers without NULL checks
-- Ignore compiler warnings
-- Submit code that fails checkpatch
-- Add TODO comments without tracking them
-- Use floating point in kernel code (not allowed)
-- Call userspace-only functions (printf, malloc, etc.) in kernel code
-- Use camelCase - kernel uses snake_case
+## Do / Don't
 
 ### DO
 
-- Run all quality checks before committing
-- Add tests for all new functionality
-- Update documentation when adding features
-- Keep functions small and focused
-- Use descriptive variable names
-- Comment complex algorithms
-- Check return values
-- Clean up resources on error paths
+- Keep kernel-module files checkpatch-clean
+- Run unit tests after changing helper format strings
+- Update docs/tests alongside feature additions
+- Keep userspace and kernel output expectations in sync
 
-## QEMU E2E Testing
+### DON'T
 
-Located in `e2e/` directory:
+- Assume `make check` success means no warnings
+- Introduce formatting-only changes that break asserted output strings
+- Mix kernel and userspace code paths without proper guards
+- Ignore lock/lifetime requirements around task/mm access
 
-- `qemu-setup.sh` - Initialize QEMU VM
-- `qemu-run.sh` - Start VM in background
-- `qemu-test.sh` - Run tests in VM
+## Additional References
 
-Tests validate actual kernel module behavior in isolated environment.
-
-## Key Functions Reference
-
-### Kernel Module (`proclens_module.c`)
-
-- `print_memory_pressure()` - Display memory pressure metrics
-- `print_memory_layout()` - Show heap, stack, code segments
-- `print_memory_layout_visualization()` - Show proportional memory map bars
-- `print_io_stats()` - Display per-process I/O counters and derived metrics
-- `print_network_stats()` - Display brief per-process network statistics
-- `print_sockets()` - Display open sockets and endpoint details
-- `proclens_module_show()` - Main process information output handler
-- `proclens_module_threads_show()` - Thread listing output handler
-
-### Helpers (`proclens_module.h`)
-
-- `calculate_rss_pages()` - Compute resident set size from mm counters
-- `pages_to_kb()` - Convert pages to kilobytes
-- `calculate_total_faults()` - Sum major and minor page faults
-- `is_valid_oom_score_adj()` - Validate OOM score range
-- `calculate_memory_usage_percent()` - Compute memory percentage
-- `is_high_memory_pressure()` - Determine if memory pressure is high
-- `calculate_avg_bytes_per_syscall()` - Compute average bytes per syscall safely
-- `calculate_io_intensity()` - Compute read/write storage intensity
-
-## Version and Release
-
-- Follow semantic versioning (MAJOR.MINOR.PATCH)
-- Releases triggered by PR labels
-- Release notes extracted from PR "Release Notes" section
-- See `docs/RELEASE.md` for full release process
-
-## Additional Resources
-
-- Linux Kernel Coding Style: https://www.kernel.org/doc/html/latest/process/coding-style.html
-- Kernel APIs: https://www.kernel.org/doc/html/latest/
-- Project Documentation: `/docs/*.md`
+- Linux Kernel Coding Style:
+  https://www.kernel.org/doc/html/latest/process/coding-style.html
+- Kernel API docs:
+  https://www.kernel.org/doc/html/latest/
+- Project docs:
+  `docs/*.md`
 
 ---
 
-**Remember**: Kernel code quality is non-negotiable. Always run `make checkpatch` and
-ensure `src/proclens_module.c` and `src/proclens_module.h` pass with 0 errors and 0
-warnings.
+**Remember**: For this repository, release-quality changes require manual review
+of tool output plus strict cleanliness in `src/proclens_module.c` and
+`src/proclens_module.h`, regardless of masked exit codes.
