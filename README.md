@@ -132,6 +132,12 @@ sudo insmod ./proclens_module.ko
 sudo ./proclens
 ```
 
+If the module was previously installed via `make install` or `install.sh`, you can also load it with:
+
+```bash
+sudo modprobe proclens_module
+```
+
 To unload the module:
 
 ```bash
