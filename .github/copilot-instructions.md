@@ -40,6 +40,13 @@ per-process I/O statistics, ELF metadata, and thread information.
 - `docs/CODE_QUALITY.md`: quality tooling details
 - `docs/SCRIPTS.md`: QEMU workflow details
 - `docs/RELEASE.md`: release process and labels
+- `docs/AGENTIC_WORKFLOW.md`: high-level docs-agent workflow guide
+
+### Agentic Workflow Source of Truth
+
+- Author workflow logic in `.github/workflows/update-docs-agent.md`
+- Treat `.github/workflows/update-docs-agent.lock.yml` as generated output
+- Recompile after edits with `gh aw compile update-docs-agent`
 
 ## Code Style and Standards
 

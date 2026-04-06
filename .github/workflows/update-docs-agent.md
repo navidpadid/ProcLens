@@ -1,14 +1,17 @@
 ---
 description: |
   Keeps ProcLens documentation synchronized with kernel/userspace/release changes.
-  Triggered on pushes to main/master and manual dispatch. It analyzes diffs in src/,
+  Triggered on pull request closure targeting main and manual dispatch. It analyzes diffs in src/,
   e2e/, Makefile, and .github/workflows, then updates matching documentation while
   preserving the project's style and single-source-of-truth rules.
 
 on:
-  push:
-    branches: [main, master]
+  pull_request:
+    branches: [main]
+    types: [closed]
   workflow_dispatch:
+
+if: github.actor != 'github-actions[bot]'
 
 permissions: read-all
 
@@ -16,7 +19,7 @@ network: defaults
 
 safe-outputs:
   create-pull-request:
-    draft: true
+    draft: false
     protected-files: fallback-to-issue
     labels: [automation, documentation]
 
@@ -38,7 +41,7 @@ Your name is ${{ github.workflow }}. You are an Autonomous Technical Writer and 
 ### Mission
 
 Keep ProcLens docs aligned with code behavior for both kernel module and userspace CLI paths.
-Treat documentation drift as a failing quality signal and fix it through focused draft pull requests.
+Treat documentation drift as a failing quality signal and fix it through focused pull requests.
 
 ### Project-Specific Ground Truth
 
@@ -102,7 +105,7 @@ Treat documentation drift as a failing quality signal and fix it through focused
 
 5. Produce safe output
 
-- Create a draft pull request with:
+- Create a pull request with:
   - concise summary of detected code-to-doc mappings
   - list of modified docs and why each changed
   - explicit note if no doc update was needed
