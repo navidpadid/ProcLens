@@ -1,14 +1,17 @@
 ---
 description: |
   Keeps ProcLens documentation synchronized with kernel/userspace/release changes.
-  Triggered on pushes to main/master and manual dispatch. It analyzes diffs in src/,
+  Triggered on pull request closure targeting main and manual dispatch. It analyzes diffs in src/,
   e2e/, Makefile, and .github/workflows, then updates matching documentation while
   preserving the project's style and single-source-of-truth rules.
 
 on:
-  push:
-    branches: [main, master]
+  pull_request:
+    branches: [main]
+    types: [closed]
   workflow_dispatch:
+
+if: github.actor != 'github-actions[bot]'
 
 permissions: read-all
 
