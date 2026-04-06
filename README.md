@@ -8,6 +8,7 @@
 
 > A Linux kernel module that surfaces process and thread details through `/proc`, including memory layout, CPU usage, network/socket activity, per-process I/O accounting, and live section-based inspection.
 
+
 ## Live Demo
 
 ![Live Demo](docs/demo.gif)
