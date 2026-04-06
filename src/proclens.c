@@ -157,7 +157,8 @@ static int ensure_module_loaded(void)
 			"%serror:%s kernel module 'proclens_module' is not "
 			"loaded\n",
 			color_code(C_YELLOW), color_code(C_RESET));
-		fprintf(stderr, "hint: run 'sudo insmod ./build/proclens_module.ko' or "
+		fprintf(stderr, "hint: run 'sudo insmod ./build/proclens_module.ko', "
+				"'sudo modprobe proclens_module' (if installed), or "
 				"'sudo make install'\n");
 		return -1;
 	}
