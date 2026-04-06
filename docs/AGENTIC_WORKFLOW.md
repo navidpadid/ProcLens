@@ -8,7 +8,7 @@ The workflow:
 - Monitors repository changes when pull requests are closed into main
 - Maps code/process changes to the correct docs files
 - Opens a pull request with documentation updates when needed
-- Skips self-trigger loops from github-actions bot
+- Skips self-trigger loops from github-actions[bot] and Copilot actors
 
 This is intentionally high-level. Detailed behavior and policy live in the workflow source file:
 - `.github/workflows/update-docs-agent.md`
@@ -67,7 +67,7 @@ git diff -- .github/workflows/update-docs-agent.md .github/workflows/update-docs
 Validate expected event behavior in Actions:
 - Automatic run on pull_request closed targeting main
 - No automatic run on push
-- No run when actor is github-actions[bot]
+- No run when actor is github-actions[bot] or Copilot
 
 A practical test sequence:
 1. Open a test PR against main
