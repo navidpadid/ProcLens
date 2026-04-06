@@ -326,6 +326,7 @@ Code formatter that ensures consistent style:
 - [CODE_QUALITY.md](docs/CODE_QUALITY.md) - Static analysis, code formatting, best practices
 - [SCRIPTS.md](docs/SCRIPTS.md) - Detailed script documentation
 - [RELEASE.md](docs/RELEASE.md) - Version release process and guidelines
+- [AGENTIC_WORKFLOW.md](docs/AGENTIC_WORKFLOW.md) - High-level guide for the docs agent workflow
 
 ## Contributing
 
