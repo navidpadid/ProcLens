@@ -11,7 +11,7 @@ on:
     types: [closed]
   workflow_dispatch:
 
-if: github.actor != 'github-actions[bot]'
+if: github.actor != 'github-actions[bot]' && github.actor != 'Copilot'
 
 permissions: read-all
 
