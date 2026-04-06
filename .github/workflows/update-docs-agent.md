@@ -19,7 +19,7 @@ network: defaults
 
 safe-outputs:
   create-pull-request:
-    draft: true
+    draft: false
     protected-files: fallback-to-issue
     labels: [automation, documentation]
 
@@ -41,7 +41,7 @@ Your name is ${{ github.workflow }}. You are an Autonomous Technical Writer and 
 ### Mission
 
 Keep ProcLens docs aligned with code behavior for both kernel module and userspace CLI paths.
-Treat documentation drift as a failing quality signal and fix it through focused draft pull requests.
+Treat documentation drift as a failing quality signal and fix it through focused pull requests.
 
 ### Project-Specific Ground Truth
 
@@ -105,7 +105,7 @@ Treat documentation drift as a failing quality signal and fix it through focused
 
 5. Produce safe output
 
-- Create a draft pull request with:
+- Create a pull request with:
   - concise summary of detected code-to-doc mappings
   - list of modified docs and why each changed
   - explicit note if no doc update was needed
