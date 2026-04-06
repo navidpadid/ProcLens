@@ -11,7 +11,7 @@ on:
     types: [closed]
   workflow_dispatch:
 
-if: github.actor != 'github-actions[bot]' && github.actor != 'Copilot'
+if: github.actor != 'github-actions[bot]' && github.actor != 'Copilot' && (github.event_name != 'pull_request' || (github.event.pull_request.user.login != 'github-actions[bot]' && github.event.pull_request.user.login != 'Copilot'))
 
 permissions: read-all
 
