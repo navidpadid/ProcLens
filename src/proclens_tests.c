@@ -379,7 +379,7 @@ static void test_io_view_starts_from_io_section(void)
 			  "sockets_total: 2\n"
 			  "[io]\n"
 			  "rchar: 123\n"
-			  "io_intensity: 456\n";
+			  "io_intensity: 456 B\n";
 
 	reset_mocks();
 	print_io_view(det);
@@ -388,7 +388,7 @@ static void test_io_view_starts_from_io_section(void)
 	assert(!strstr(output_buf, "[network]"));
 	assert(strstr(output_buf, "[io]"));
 	assert(strstr(output_buf, "rchar: 123"));
-	assert(strstr(output_buf, "io_intensity: 456"));
+	assert(strstr(output_buf, "io_intensity: 456 B"));
 }
 
 static void test_format_current_time_layout(void)
