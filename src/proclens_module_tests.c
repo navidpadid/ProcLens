@@ -123,6 +123,14 @@ int main(void)
 	len = format_size_with_unit(5 * 1024 * 1024, size_buf, sizeof(size_buf));
 	assert(strcmp(size_buf, "5 MB") == 0);
 
+	/* Test gigabytes */
+	len = format_size_with_unit(1024UL * 1024UL * 1024UL, size_buf, sizeof(size_buf));
+	assert(strcmp(size_buf, "1 GB") == 0);
+	assert(len > 0);
+
+	len = format_size_with_unit(3UL * 1024UL * 1024UL * 1024UL, size_buf, sizeof(size_buf));
+	assert(strcmp(size_buf, "3 GB") == 0);
+
 	/* Test edge cases */
 	len = format_size_with_unit(0, size_buf, sizeof(size_buf));
 	assert(strcmp(size_buf, "0 B") == 0);

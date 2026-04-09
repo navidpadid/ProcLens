@@ -283,7 +283,7 @@ static inline void try_insert_top_talker(struct top_talker_entry *list,
 	list[insert_at] = entry;
 }
 
-/* Format size with appropriate unit (B, KB, MB)
+/* Format size with appropriate unit (B, KB, MB, GB)
  * Returns number of characters written (excluding null terminator)
  */
 static inline int format_size_with_unit(unsigned long size, char *out_buf, int buf_size)
@@ -291,8 +291,10 @@ static inline int format_size_with_unit(unsigned long size, char *out_buf, int b
 	if (!out_buf || buf_size < 10)
 		return 0;
 
-	if (size >= 1024 * 1024)
-		return snprintf(out_buf, buf_size, "%lu MB", size / (1024 * 1024));
+	if (size >= 1024UL * 1024UL * 1024UL)
+		return snprintf(out_buf, buf_size, "%lu GB", size / (1024UL * 1024UL * 1024UL));
+	else if (size >= 1024UL * 1024UL)
+		return snprintf(out_buf, buf_size, "%lu MB", size / (1024UL * 1024UL));
 	else if (size >= 1024)
 		return snprintf(out_buf, buf_size, "%lu KB", size / 1024);
 	else

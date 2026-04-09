@@ -281,6 +281,14 @@ static void print_io_stats(struct seq_file *m, struct task_struct *task)
 	u64 avg_read_bytes;
 	u64 avg_write_bytes;
 	u64 io_intensity;
+	char rchar_str[32];
+	char wchar_str[32];
+	char read_bytes_str[32];
+	char write_bytes_str[32];
+	char cancelled_write_bytes_str[32];
+	char avg_read_bytes_str[32];
+	char avg_write_bytes_str[32];
+	char io_intensity_str[32];
 
 	seq_puts(m, "\n[io]\n");
 
@@ -297,16 +305,29 @@ static void print_io_stats(struct seq_file *m, struct task_struct *task)
 	avg_write_bytes = calculate_avg_bytes_per_syscall(wchar, syscw);
 	io_intensity = calculate_io_intensity(read_bytes, write_bytes);
 
-	seq_printf(m, "rchar: %llu\n", rchar);
-	seq_printf(m, "wchar: %llu\n", wchar);
+	format_size_with_unit((unsigned long)rchar, rchar_str, sizeof(rchar_str));
+	format_size_with_unit((unsigned long)wchar, wchar_str, sizeof(wchar_str));
+	format_size_with_unit((unsigned long)read_bytes, read_bytes_str, sizeof(read_bytes_str));
+	format_size_with_unit((unsigned long)write_bytes, write_bytes_str, sizeof(write_bytes_str));
+	format_size_with_unit((unsigned long)cancelled_write_bytes, cancelled_write_bytes_str,
+			      sizeof(cancelled_write_bytes_str));
+	format_size_with_unit((unsigned long)avg_read_bytes, avg_read_bytes_str,
+			      sizeof(avg_read_bytes_str));
+	format_size_with_unit((unsigned long)avg_write_bytes, avg_write_bytes_str,
+			      sizeof(avg_write_bytes_str));
+	format_size_with_unit((unsigned long)io_intensity, io_intensity_str,
+			      sizeof(io_intensity_str));
+
+	seq_printf(m, "rchar: %s\n", rchar_str);
+	seq_printf(m, "wchar: %s\n", wchar_str);
 	seq_printf(m, "syscr: %llu\n", syscr);
 	seq_printf(m, "syscw: %llu\n", syscw);
-	seq_printf(m, "read_bytes: %llu\n", read_bytes);
-	seq_printf(m, "write_bytes: %llu\n", write_bytes);
-	seq_printf(m, "cancelled_write_bytes: %llu\n", cancelled_write_bytes);
-	seq_printf(m, "avg_read_bytes_per_syscall: %llu\n", avg_read_bytes);
-	seq_printf(m, "avg_write_bytes_per_syscall: %llu\n", avg_write_bytes);
-	seq_printf(m, "io_intensity: %llu\n", io_intensity);
+	seq_printf(m, "read_bytes: %s\n", read_bytes_str);
+	seq_printf(m, "write_bytes: %s\n", write_bytes_str);
+	seq_printf(m, "cancelled_write_bytes: %s\n", cancelled_write_bytes_str);
+	seq_printf(m, "avg_read_bytes_per_syscall: %s\n", avg_read_bytes_str);
+	seq_printf(m, "avg_write_bytes_per_syscall: %s\n", avg_write_bytes_str);
+	seq_printf(m, "io_intensity: %s\n", io_intensity_str);
 #else
 	seq_puts(m, "status: unavailable (CONFIG_TASK_XACCT disabled)\n");
 #endif
