@@ -155,6 +155,7 @@ The process information output includes an I/O section (`[io]`) sourced from tas
 Notes:
 - The section is available when `CONFIG_TASK_XACCT` is enabled in the running kernel.
 - If task accounting is unavailable, the section prints an explicit `status: unavailable` line.
+- All byte-count fields (`rchar`, `wchar`, `read_bytes`, `write_bytes`, `cancelled_write_bytes`, `avg_read_bytes_per_syscall`, `avg_write_bytes_per_syscall`, `io_intensity`) are formatted via `format_size_with_unit` and displayed with human-readable units: B, KB, MB, or GB. `syscr` and `syscw` remain raw counts.
 
 ### Argument Mode
 ```bash

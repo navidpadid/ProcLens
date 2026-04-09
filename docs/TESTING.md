@@ -272,6 +272,8 @@ Look for:
 - `avg_read_bytes_per_syscall:`, `avg_write_bytes_per_syscall:`
 - `io_intensity:`
 
+Byte-count fields (`rchar`, `wchar`, `read_bytes`, `write_bytes`, `cancelled_write_bytes`, the two averages, and `io_intensity`) display values with human-readable units (e.g. `12 KB`, `3 MB`, `2 GB`). `syscr` and `syscw` are raw syscall counts with no unit suffix.
+
 If the running kernel was built without task I/O accounting (`CONFIG_TASK_XACCT`),
 the section will show `status: unavailable` instead of per-field counters.
 
@@ -305,6 +307,11 @@ Complete unit test coverage for all pure helper functions:
 - `socket_type_to_string()` - Socket type conversion (STREAM, DGRAM, RAW)
 - `socket_state_to_string()` - TCP state conversion (ESTABLISHED, LISTEN, etc.)
 - `add_netdev_count()` - Net device usage aggregation helper
+
+#### I/O Formatting Helpers
+- `format_size_with_unit()` - Human-readable byte formatting (B, KB, MB, GB)
+- `calculate_avg_bytes_per_syscall()` - Average byte payload per syscall
+- `calculate_io_intensity()` - Aggregate storage traffic (read + write bytes)
 
 All helpers are tested with:
 - Normal cases
