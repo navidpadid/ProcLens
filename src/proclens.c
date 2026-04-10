@@ -154,6 +154,10 @@ static void print_logo_text(void)
 	puts("                                                                               ");
 	puts("                                                                               ");
 	/* clang-format on */
+	printf("%s%slatest release:%s https://github.com/navidpadid/ProcLens/releases/latest\n",
+	       color_code(C_CYAN), color_code(C_BOLD), color_code(C_RESET));
+	printf("%s%sversion:%s %s\n", color_code(C_CYAN), color_code(C_BOLD), color_code(C_RESET),
+	       PROCLENS_VERSION);
 	printf("%s\n", color_code(C_RESET));
 }
 
