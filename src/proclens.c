@@ -158,6 +158,8 @@ static void print_logo_text(void)
 	       color_code(C_CYAN), color_code(C_BOLD), color_code(C_RESET));
 	printf("%s%sversion:%s %s\n", color_code(C_CYAN), color_code(C_BOLD), color_code(C_RESET),
 	       PROCLENS_VERSION);
+	printf("%s%slike ProcLens?%s consider giving it a star on GitHub.\n", color_code(C_CYAN),
+	       color_code(C_BOLD), color_code(C_RESET));
 	printf("%s\n", color_code(C_RESET));
 }
 
