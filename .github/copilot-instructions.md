@@ -24,6 +24,8 @@ per-process I/O statistics, ELF metadata, and thread information.
 
 - One-shot mode for a specific PID
 - Live mode dashboard with section filtering and refresh loop
+- Default live section is `Overview` (`5`) with 32-sample trend lanes
+  (CPU, RSS, RX/s, TX/s, WR/s)
 - Uses procfs endpoints provided by the kernel module
 
 ### Tests
