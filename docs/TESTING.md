@@ -181,13 +181,14 @@ Expected behavior:
 - If `proclens_module` is not loaded, program exits immediately with status `-1`
 - If required proc files are missing (`pid`, `det`, `threads`), program exits immediately with status `-1`
 - Screen refreshes every 1 second
-- Header shows controls (`1` memory, `2` network, `3` threads, `4` I/O, `0` switch PID)
+- Header shows controls (`1` memory, `2` network, `3` threads, `4` I/O, `5` overview, `0` switch PID)
 - Each refresh shows `Snapshot start` and `Snapshot end` timestamps in `YY/MM/DD HH:MM:SS`
 - `Up`/`k` moves to older snapshots, `Down`/`j` moves toward newer snapshots
 - While browsing old snapshots, header indicates history-browsing mode
 - Press `f` to return to live-follow mode
-- Default section is memory (`1`)
+- Default section is overview (`5`)
 - Press `4` to view only I/O statistics (`[io]` section)
+- Press `5` to return to the condensed overview page
 - Pressing `0` prompts for a new PID and continues live refresh for that PID
 
 Note: Live mode requires a real TTY for raw terminal input (`tcgetattr`/`tcsetattr`).

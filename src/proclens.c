@@ -90,6 +90,24 @@ enum view_mode {
 	VIEW_NETWORK = 2,
 	VIEW_THREADS = 3,
 	VIEW_IO = 4,
+	VIEW_OVERVIEW = 5,
+};
+
+struct overview_thread_entry {
+	char line[256];
+	unsigned long long cpu_permyriad;
+	int valid;
+};
+
+struct overview_talker_entry {
+	int rank;
+	unsigned int fd;
+	char proto[16];
+	char family[16];
+	unsigned long long rx_bytes;
+	unsigned long long tx_bytes;
+	unsigned long long total_bytes;
+	int valid;
 };
 
 struct live_snapshot {
@@ -330,6 +348,391 @@ static int is_memory_section_start(const char *line)
 	return strncmp(line, "Memory Pressure Statistics:", 27) == 0 ||
 	       strncmp(line, "Memory Layout:", 14) == 0 ||
 	       strncmp(line, "Memory Layout Visualization:", 28) == 0;
+}
+
+static int read_content_line(const char **cursor, char *line, size_t line_size)
+{
+	size_t line_len = 0;
+
+	if (!cursor || !*cursor || !**cursor || !line || line_size < 2)
+		return 0;
+
+	while ((*cursor)[line_len] && (*cursor)[line_len] != '\n' && line_len < line_size - 2)
+		line_len++;
+
+	memcpy(line, *cursor, line_len);
+	if ((*cursor)[line_len] == '\n') {
+		line[line_len++] = '\n';
+		*cursor += line_len;
+	} else {
+		*cursor += line_len;
+	}
+	line[line_len] = '\0';
+	return 1;
+}
+
+static void trim_newline(char *line)
+{
+	size_t len;
+
+	if (!line)
+		return;
+
+	len = strlen(line);
+	while (len > 0 && (line[len - 1] == '\n' || line[len - 1] == '\r')) {
+		line[len - 1] = '\0';
+		len--;
+	}
+}
+
+static void copy_truncated_string(char *dst, size_t dst_size, const char *src)
+{
+	size_t len;
+
+	if (!dst || dst_size == 0)
+		return;
+
+	if (!src) {
+		dst[0] = '\0';
+		return;
+	}
+
+	len = strlen(src);
+	if (len >= dst_size)
+		len = dst_size - 1;
+
+	memcpy(dst, src, len);
+	dst[len] = '\0';
+}
+
+static int
+copy_line_with_prefix(const char *content, const char *prefix, char *out, size_t out_size)
+{
+	char line[2048];
+	const char *cursor = content;
+	size_t prefix_len;
+
+	if (!content || !prefix || !out || out_size == 0)
+		return 0;
+
+	prefix_len = strlen(prefix);
+	while (read_content_line(&cursor, line, sizeof(line))) {
+		if (strncmp(line, prefix, prefix_len) == 0) {
+			snprintf(out, out_size, "%s", line);
+			return 1;
+		}
+	}
+
+	return 0;
+}
+
+static int collect_top_talkers(const char *det_content,
+			       struct overview_talker_entry *talkers,
+			       int max_talkers,
+			       int *saw_none)
+{
+	char line[2048];
+	const char *cursor = det_content;
+	int in_top_talkers = 0;
+	int count = 0;
+
+	if (saw_none)
+		*saw_none = 0;
+
+	if (!det_content || !talkers || max_talkers <= 0)
+		return 0;
+
+	while (read_content_line(&cursor, line, sizeof(line))) {
+		if (!in_top_talkers) {
+			if (strncmp(line, "top_talkers:", 12) == 0)
+				in_top_talkers = 1;
+			continue;
+		}
+
+		if (strncmp(line, "  #", 3) == 0) {
+			if (count < max_talkers) {
+				int parsed;
+				struct overview_talker_entry *entry = &talkers[count];
+
+				memset(entry, 0, sizeof(*entry));
+				parsed = sscanf(
+					line,
+					"  #%d FD %u Proto: %15s Family: %15s RX bytes=%llu TX bytes=%llu Total bytes=%llu",
+					&entry->rank, &entry->fd, entry->proto, entry->family,
+					&entry->rx_bytes, &entry->tx_bytes, &entry->total_bytes);
+				if (parsed == 7)
+					entry->valid = 1;
+			}
+			count++;
+			continue;
+		}
+
+		if (strncmp(line, "  none", 6) == 0) {
+			if (saw_none)
+				*saw_none = 1;
+			break;
+		}
+
+		if (strncmp(line, "Open Sockets:", 13) == 0 || strncmp(line, "[io]", 4) == 0)
+			break;
+	}
+
+	return count;
+}
+
+static void maybe_insert_top_thread(struct overview_thread_entry *top_threads,
+				    int top_len,
+				    const char *line,
+				    unsigned long long cpu_permyriad)
+{
+	int i;
+	int insert_at = -1;
+
+	for (i = 0; i < top_len; i++) {
+		if (!top_threads[i].valid || cpu_permyriad > top_threads[i].cpu_permyriad) {
+			insert_at = i;
+			break;
+		}
+	}
+
+	if (insert_at < 0)
+		return;
+
+	for (i = top_len - 1; i > insert_at; i--)
+		top_threads[i] = top_threads[i - 1];
+
+	top_threads[insert_at].cpu_permyriad = cpu_permyriad;
+	top_threads[insert_at].valid = 1;
+	copy_truncated_string(top_threads[insert_at].line, sizeof(top_threads[insert_at].line),
+			      line);
+	trim_newline(top_threads[insert_at].line);
+}
+
+static int collect_top_threads(const char *threads_content,
+			       struct overview_thread_entry *top_threads,
+			       int top_len)
+{
+	char line[2048];
+	const char *cursor = threads_content;
+	int count = 0;
+
+	if (!threads_content || !top_threads || top_len <= 0)
+		return 0;
+
+	while (read_content_line(&cursor, line, sizeof(line))) {
+		int tid;
+		char name[32];
+		unsigned long long cpu_whole;
+		unsigned long long cpu_frac;
+		char state;
+		int priority;
+		int nice_value;
+		char affinity[64];
+		int parsed;
+
+		if (strncmp(line, "TID", 3) == 0 || strncmp(line, "-----", 5) == 0 ||
+		    strncmp(line, "Total threads:", 14) == 0 ||
+		    strncmp(line, "--------------------------------", 32) == 0)
+			continue;
+
+		parsed = sscanf(line, "%d %31s %llu.%llu %c %d %d %63s", &tid, name, &cpu_whole,
+				&cpu_frac, &state, &priority, &nice_value, affinity);
+		if (parsed != 8)
+			continue;
+
+		maybe_insert_top_thread(top_threads, top_len, line,
+					(cpu_whole * 100ULL) + cpu_frac);
+		count++;
+	}
+
+	return count;
+}
+
+static void print_overview_view(const struct live_snapshot *snapshot)
+{
+	char rss_line[256];
+	char vsz_line[256];
+	char swap_line[256];
+	char major_faults[256];
+	char minor_faults[256];
+	char sockets_total[256];
+	char rx_bytes[256];
+	char tx_bytes[256];
+	char retransmits[256];
+	char drops[256];
+	char read_bytes[256];
+	char write_bytes[256];
+	char syscr[256];
+	char syscw[256];
+	char io_intensity[256];
+	char io_status[256];
+	char total_threads[256];
+	struct overview_talker_entry top_talkers[2] = {0};
+	struct overview_thread_entry top_threads[3] = {0};
+	int top_talker_count;
+	int top_thread_count;
+	int saw_no_talkers = 0;
+	int i;
+
+	memset(rss_line, 0, sizeof(rss_line));
+	memset(vsz_line, 0, sizeof(vsz_line));
+	memset(swap_line, 0, sizeof(swap_line));
+	memset(major_faults, 0, sizeof(major_faults));
+	memset(minor_faults, 0, sizeof(minor_faults));
+	memset(sockets_total, 0, sizeof(sockets_total));
+	memset(rx_bytes, 0, sizeof(rx_bytes));
+	memset(tx_bytes, 0, sizeof(tx_bytes));
+	memset(retransmits, 0, sizeof(retransmits));
+	memset(drops, 0, sizeof(drops));
+	memset(read_bytes, 0, sizeof(read_bytes));
+	memset(write_bytes, 0, sizeof(write_bytes));
+	memset(syscr, 0, sizeof(syscr));
+	memset(syscw, 0, sizeof(syscw));
+	memset(io_intensity, 0, sizeof(io_intensity));
+	memset(io_status, 0, sizeof(io_status));
+	memset(total_threads, 0, sizeof(total_threads));
+
+	copy_line_with_prefix(snapshot->det_content, "  RSS (Resident):", rss_line,
+			      sizeof(rss_line));
+	copy_line_with_prefix(snapshot->det_content, "  VSZ (Virtual):", vsz_line,
+			      sizeof(vsz_line));
+	copy_line_with_prefix(snapshot->det_content, "  Swap Usage:", swap_line, sizeof(swap_line));
+	copy_line_with_prefix(snapshot->det_content, "    - Major:", major_faults,
+			      sizeof(major_faults));
+	copy_line_with_prefix(snapshot->det_content, "    - Minor:", minor_faults,
+			      sizeof(minor_faults));
+	copy_line_with_prefix(snapshot->det_content, "sockets_total:", sockets_total,
+			      sizeof(sockets_total));
+	copy_line_with_prefix(snapshot->det_content, "rx_bytes:", rx_bytes, sizeof(rx_bytes));
+	copy_line_with_prefix(snapshot->det_content, "tx_bytes:", tx_bytes, sizeof(tx_bytes));
+	copy_line_with_prefix(snapshot->det_content, "tcp_retransmits:", retransmits,
+			      sizeof(retransmits));
+	copy_line_with_prefix(snapshot->det_content, "drops:", drops, sizeof(drops));
+	copy_line_with_prefix(snapshot->det_content, "read_bytes:", read_bytes, sizeof(read_bytes));
+	copy_line_with_prefix(snapshot->det_content, "write_bytes:", write_bytes,
+			      sizeof(write_bytes));
+	copy_line_with_prefix(snapshot->det_content, "syscr:", syscr, sizeof(syscr));
+	copy_line_with_prefix(snapshot->det_content, "syscw:", syscw, sizeof(syscw));
+	copy_line_with_prefix(snapshot->det_content, "io_intensity:", io_intensity,
+			      sizeof(io_intensity));
+	copy_line_with_prefix(snapshot->det_content, "status:", io_status, sizeof(io_status));
+	copy_line_with_prefix(snapshot->threads_content, "Total threads:", total_threads,
+			      sizeof(total_threads));
+
+	trim_newline(rss_line);
+	trim_newline(vsz_line);
+	trim_newline(swap_line);
+	trim_newline(major_faults);
+	trim_newline(minor_faults);
+	trim_newline(sockets_total);
+	trim_newline(rx_bytes);
+	trim_newline(tx_bytes);
+	trim_newline(retransmits);
+	trim_newline(drops);
+	trim_newline(read_bytes);
+	trim_newline(write_bytes);
+	trim_newline(syscr);
+	trim_newline(syscw);
+	trim_newline(io_intensity);
+	trim_newline(io_status);
+	trim_newline(total_threads);
+
+	top_talker_count = collect_top_talkers(snapshot->det_content, top_talkers,
+					       ARRAY_SIZE(top_talkers), &saw_no_talkers);
+	top_thread_count = collect_top_threads(snapshot->threads_content, top_threads,
+					       ARRAY_SIZE(top_threads));
+
+	printf("%s%sOVERVIEW%s\n", color_code(C_GREEN), color_code(C_BOLD), color_code(C_RESET));
+	puts("---------------------------------------------------------------");
+
+	printf("%s%sMEMORY SNAPSHOT%s\n", color_code(C_BLUE), color_code(C_BOLD),
+	       color_code(C_RESET));
+	if (rss_line[0] != '\0')
+		printf("%s%s%s\n", color_code(C_YELLOW), rss_line, color_code(C_RESET));
+	if (vsz_line[0] != '\0')
+		printf("%s%s%s\n", color_code(C_YELLOW), vsz_line, color_code(C_RESET));
+	if (swap_line[0] != '\0')
+		printf("%s%s%s\n", color_code(C_YELLOW), swap_line, color_code(C_RESET));
+	if (major_faults[0] != '\0' || minor_faults[0] != '\0') {
+		puts("  Page Faults:");
+		if (major_faults[0] != '\0')
+			printf("%s%s%s\n", color_code(C_CYAN), major_faults, color_code(C_RESET));
+		if (minor_faults[0] != '\0')
+			printf("%s%s%s\n", color_code(C_CYAN), minor_faults, color_code(C_RESET));
+	}
+	puts("");
+
+	printf("%s%sNETWORK SNAPSHOT%s\n", color_code(C_GREEN), color_code(C_BOLD),
+	       color_code(C_RESET));
+	if (sockets_total[0] != '\0')
+		printf("%s%s%s\n", color_code(C_YELLOW), sockets_total, color_code(C_RESET));
+	if (rx_bytes[0] != '\0')
+		printf("%s%s%s\n", color_code(C_YELLOW), rx_bytes, color_code(C_RESET));
+	if (tx_bytes[0] != '\0')
+		printf("%s%s%s\n", color_code(C_YELLOW), tx_bytes, color_code(C_RESET));
+	if (retransmits[0] != '\0')
+		printf("%s%s%s\n", color_code(C_YELLOW), retransmits, color_code(C_RESET));
+	if (drops[0] != '\0')
+		printf("%s%s%s\n", color_code(C_YELLOW), drops, color_code(C_RESET));
+	puts("  Top talkers:");
+	if (top_talker_count > 0) {
+		printf("%s  RANK  FD   PROTO   FAMILY      RX_BYTES   TX_BYTES   TOTAL_BYTES%s\n",
+		       color_code(C_CYAN), color_code(C_RESET));
+		printf("%s  ----  ---  ------  ----------  ---------  ---------  -----------%s\n",
+		       color_code(C_CYAN), color_code(C_RESET));
+		for (i = 0; i < top_talker_count && i < (int)ARRAY_SIZE(top_talkers); i++) {
+			if (!top_talkers[i].valid)
+				continue;
+			printf("%s  #%-3d  %-3u  %-6s  %-10s  %-9llu  %-9llu  %-9llu%s\n",
+			       color_code(C_MAGENTA), top_talkers[i].rank, top_talkers[i].fd,
+			       top_talkers[i].proto, top_talkers[i].family, top_talkers[i].rx_bytes,
+			       top_talkers[i].tx_bytes, top_talkers[i].total_bytes,
+			       color_code(C_RESET));
+		}
+	} else if (saw_no_talkers) {
+		puts("  none");
+	} else {
+		puts("  unavailable");
+	}
+	puts("");
+
+	printf("%s%sI/O SNAPSHOT%s\n", color_code(C_GREEN), color_code(C_BOLD),
+	       color_code(C_RESET));
+	if (io_status[0] != '\0') {
+		printf("%s%s%s\n", color_code(C_CYAN), io_status, color_code(C_RESET));
+	} else {
+		if (read_bytes[0] != '\0')
+			printf("%s%s%s\n", color_code(C_YELLOW), read_bytes, color_code(C_RESET));
+		if (write_bytes[0] != '\0')
+			printf("%s%s%s\n", color_code(C_YELLOW), write_bytes, color_code(C_RESET));
+		if (syscr[0] != '\0')
+			printf("%s%s%s\n", color_code(C_YELLOW), syscr, color_code(C_RESET));
+		if (syscw[0] != '\0')
+			printf("%s%s%s\n", color_code(C_YELLOW), syscw, color_code(C_RESET));
+		if (io_intensity[0] != '\0')
+			printf("%s%s%s\n", color_code(C_YELLOW), io_intensity, color_code(C_RESET));
+	}
+	puts("");
+
+	printf("%s%sTHREAD HOTSPOTS%s\n", color_code(C_MAGENTA), color_code(C_BOLD),
+	       color_code(C_RESET));
+	if (total_threads[0] != '\0')
+		printf("%s%s%s\n", color_code(C_YELLOW), total_threads, color_code(C_RESET));
+	if (top_thread_count > 0) {
+		puts("  Top threads by CPU:");
+		printf("%s  TID    NAME             CPU(%%)   STATE  PRIORITY  NICE  CPU_AFFINITY%s\n",
+		       color_code(C_CYAN), color_code(C_RESET));
+		printf("%s  -----  ---------------  -------  -----  --------  ----  ----------------%s\n",
+		       color_code(C_CYAN), color_code(C_RESET));
+		for (i = 0; i < (int)ARRAY_SIZE(top_threads); i++) {
+			if (!top_threads[i].valid)
+				continue;
+			printf("%s  %s%s\n", color_code(C_MAGENTA), top_threads[i].line,
+			       color_code(C_RESET));
+		}
+	} else {
+		puts("  Top threads by CPU: unavailable");
+	}
 }
 
 /*
@@ -627,6 +1030,9 @@ static const char *view_name(int view)
 	if (view == VIEW_IO)
 		return "I/O";
 
+	if (view == VIEW_OVERVIEW)
+		return "Overview";
+
 	return "Unknown";
 }
 
@@ -648,9 +1054,9 @@ print_live_header(const struct live_snapshot *snap, int browse_offset, int histo
 	       view_name(snap->view));
 	printf("%sSnapshot index:%s %d/%d\n", color_code(C_YELLOW), color_code(C_RESET),
 	       history_count - browse_offset, history_count);
-	puts("Sections: [1] Memory  [2] Network  [3] Threads  [4] I/O");
+	puts("Sections: [1] Memory  [2] Network  [3] Threads  [4] I/O  [5] Overview");
 	puts("History: [Up/k] older  [Down/j] newer  [f] follow live");
-	puts("Commands: 1/2/3/4 switch view, 0 change PID, Ctrl+C exit");
+	puts("Commands: 1/2/3/4/5 switch view, 0 change PID, Ctrl+C exit");
 	if (browse_offset > 0)
 		puts("Mode: browsing history (auto-refresh paused)");
 	else
@@ -676,7 +1082,7 @@ static void free_snapshot(struct live_snapshot *snap)
 	snap->threads_content = NULL;
 	snap->pid[0] = '\0';
 	snap->captured_at[0] = '\0';
-	snap->view = VIEW_MEMORY;
+	snap->view = VIEW_OVERVIEW;
 }
 
 static void
@@ -746,7 +1152,8 @@ static int capture_live_snapshot(const char *pid_str, int view, struct live_snap
 	if (read_proc_file_alloc("det", &snapshot->det_content) < 0)
 		goto fail;
 
-	if (view == VIEW_THREADS && read_proc_file_alloc("threads", &snapshot->threads_content) < 0)
+	if ((view == VIEW_THREADS || view == VIEW_OVERVIEW) &&
+	    read_proc_file_alloc("threads", &snapshot->threads_content) < 0)
 		goto fail;
 
 	return 0;
@@ -770,6 +1177,12 @@ static void print_live_snapshot(const struct live_snapshot *snapshot)
 	       color_code(C_RESET));
 	print_cmdline(snapshot->pid);
 	print_det_preamble(snapshot->det_content);
+
+	if (snapshot->view == VIEW_OVERVIEW) {
+		print_overview_view(snapshot);
+		print_live_footer(snapshot->captured_at);
+		return;
+	}
 
 	if (snapshot->view == VIEW_MEMORY) {
 		print_memory_view(snapshot->det_content);
@@ -850,7 +1263,7 @@ static void run_live_mode(void)
 	struct live_snapshot snapshot;
 	char pid_user[PID_INPUT_MAX];
 	int key;
-	int view = VIEW_MEMORY;
+	int view = VIEW_OVERVIEW;
 	int browse_offset = 0;
 	int history_count = 0;
 	int history_next = 0;
@@ -906,6 +1319,10 @@ static void run_live_mode(void)
 			view = VIEW_IO;
 			browse_offset = 0;
 			clear_snapshot_history(history, &history_count, &history_next);
+		} else if (key == '5') {
+			view = VIEW_OVERVIEW;
+			browse_offset = 0;
+			clear_snapshot_history(history, &history_count, &history_next);
 		} else if (key == 'k') {
 			if (browse_offset + 1 < history_count)
 				browse_offset++;
@@ -947,6 +1364,7 @@ static void print_usage(void)
 	printf("    2  Network section\n");
 	printf("    3  Threads section\n");
 	printf("    4  I/O section\n");
+	printf("    5  Overview section\n");
 	printf("    0  Change PID\n");
 	printf("    Up/k  Older snapshot   Down/j  Newer snapshot\n");
 	printf("    f     Resume live follow\n");
