@@ -121,19 +121,31 @@ Simple C program that supports two modes:
 Prompts for a PID, then enters a 1-second refresh loop with section filtering.
 Each refresh prints start/end timestamps in `YY/MM/DD HH:MM:SS`.
 Snapshots are kept in an in-memory ring buffer (120 entries) for history browsing.
+Default section is `5` (Overview).
+
+Overview mode includes trend lanes rendered from recent snapshot history:
+- CPU%
+- RSS
+- RX/s
+- TX/s
+- WR/s
+
+Each lane uses 32 samples and block-style histogram glyphs, with one blank line
+between lanes for readability.
 
 Controls shown in the header:
-- `1` - Memory section (default)
+- `1` - Memory section
 - `2` - Network section
 - `3` - Thread section
 - `4` - I/O section
+- `5` - Overview section (default)
 - `0` - Prompt for a new PID (switch process)
 - `Up` or `k` - Older snapshot
 - `Down` or `j` - Newer snapshot
 - `f` - Return to live-follow mode
 
-Keys `1`, `2`, `3`, `4` switch sections instantly (no Enter required). Pressing `0` temporarily
-restores cooked terminal mode so the user can type a PID, then returns to raw mode.
+Keys `1`, `2`, `3`, `4`, `5` switch sections instantly (no Enter required). Pressing `0`
+temporarily restores cooked terminal mode so the user can type a PID, then returns to raw mode.
 
 ### I/O Stats
 

@@ -40,7 +40,7 @@
 - **CPU Usage Tracking**: Real-time CPU percentage calculation per process and thread
 - **ELF Section Analysis**: Binary base address and section boundaries
 - **Proc Interface**: Easy access through `/proc/proclens_module/`
-- **Live Dashboard Mode**: No-arg mode refreshes every 1s with switchable Memory, Network, Threads, and I/O sections
+- **Live Dashboard Mode**: No-arg mode refreshes every 1s with a condensed Overview page, recent trend plots, and switchable Memory, Network, Threads, and I/O sections
 - **Comprehensive Testing**: Unit tests and QEMU-based E2E testing
 - **Code Quality**: Pre-configured static analysis (sparse, cppcheck, checkpatch)
 
@@ -72,9 +72,10 @@
 Running without arguments starts a live dashboard:
 
 - Auto-refreshes every 1 second
-- Defaults to section `1` (memory-related output)
-- Shows quick controls at the top: `1` memory, `2` network, `3` threads, `4` I/O
-- Shows command hints in-app: `1/2/3/4` switch sections, `0` changes PID
+- Defaults to section `5` (overview summary)
+- Overview includes 32-sample block-style histogram trend lanes for CPU, RSS, RX/s, TX/s, and WR/s based on recent snapshots
+- Shows quick controls at the top: `1` memory, `2` network, `3` threads, `4` I/O, `5` overview
+- Shows command hints in-app: `1/2/3/4/5` switch sections, `0` changes PID
 - Prints timestamps at top and bottom in `YY/MM/DD HH:MM:SS`
 - Keeps a snapshot history (up to 120 entries) for in-app navigation
 - Press Up/`k` for older snapshots, Down/`j` for newer snapshots, `f` to resume live follow

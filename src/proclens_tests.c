@@ -391,6 +391,161 @@ static void test_io_view_starts_from_io_section(void)
 	assert(strstr(output_buf, "io_intensity: 456 B"));
 }
 
+static void test_overview_view_combines_sections(void)
+{
+	struct live_snapshot history[MAX_SNAPSHOTS];
+	struct live_snapshot snap;
+	struct live_snapshot *current;
+	int history_count = 0;
+	int history_next = 0;
+	const char *det =
+		"Process ID:      4321\n"
+		"Name:            demo\n"
+		"CPU Usage:       77.50%\n"
+		"Memory Pressure Statistics:\n"
+		"  RSS (Resident): 4096 KB\n"
+		"  VSZ (Virtual):   8192 KB\n"
+		"  Swap Usage:      64 KB\n"
+		"  Page Faults:\n"
+		"    - Major:       3\n"
+		"    - Minor:       44\n"
+		"[network]\n"
+		"sockets_total: 4 (tcp: 3, udp: 1, unix: 0)\n"
+		"rx_bytes: 1200\n"
+		"tx_bytes: 2300\n"
+		"tcp_retransmits: 9\n"
+		"drops: 1\n"
+		"top_talkers:\n"
+		"  #1 FD 9 Proto: TCP   Family: AF_INET    RX bytes=900 TX bytes=1200 Total bytes=2100\n"
+		"  #2 FD 4 Proto: UDP   Family: AF_INET    RX bytes=300 TX bytes=100 Total bytes=400\n"
+		"Open Sockets:\n"
+		"[io]\n"
+		"syscr: 12\n"
+		"syscw: 13\n"
+		"read_bytes: 1024\n"
+		"write_bytes: 2048\n"
+		"io_intensity: 3072\n";
+	const char *det_older_1 = "Process ID:      4321\n"
+				  "Name:            demo\n"
+				  "CPU Usage:       12.50%\n"
+				  "Memory Pressure Statistics:\n"
+				  "  RSS (Resident): 2048 KB\n"
+				  "[network]\n"
+				  "rx_bytes: 100\n"
+				  "tx_bytes: 150\n"
+				  "top_talkers:\n"
+				  "  none\n"
+				  "Open Sockets:\n"
+				  "[io]\n"
+				  "write_bytes: 300\n";
+	const char *det_older_2 = "Process ID:      4321\n"
+				  "Name:            demo\n"
+				  "CPU Usage:       30.00%\n"
+				  "Memory Pressure Statistics:\n"
+				  "  RSS (Resident): 3072 KB\n"
+				  "[network]\n"
+				  "rx_bytes: 400\n"
+				  "tx_bytes: 600\n"
+				  "top_talkers:\n"
+				  "  none\n"
+				  "Open Sockets:\n"
+				  "[io]\n"
+				  "write_bytes: 900\n";
+	const char *threads =
+		"TID    NAME             CPU(%)   STATE  PRIORITY  NICE  CPU_AFFINITY\n"
+		"-----  ---------------  -------  -----  --------  ----  ----------------\n"
+		"1001   worker-a          42.50   R         0         0  0,1\n"
+		"1002   worker-b          31.25   S         0         0  0,1\n"
+		"1003   io-loop            8.00   D         0         0  0,1\n"
+		"---------------------------------------------------------------\n"
+		"Total threads: 3\n";
+
+	reset_mocks();
+	memset(history, 0, sizeof(history));
+	memset(&snap, 0, sizeof(snap));
+	snap.view = VIEW_OVERVIEW;
+	snap.det_content = strdup(det_older_1);
+	snap.threads_content = strdup(threads);
+	append_snapshot(history, &history_count, &history_next, &snap);
+
+	memset(&snap, 0, sizeof(snap));
+	snap.view = VIEW_OVERVIEW;
+	snap.det_content = strdup(det_older_2);
+	snap.threads_content = strdup(threads);
+	append_snapshot(history, &history_count, &history_next, &snap);
+
+	memset(&snap, 0, sizeof(snap));
+	snap.view = VIEW_OVERVIEW;
+	snprintf(snap.pid, sizeof(snap.pid), "%s", "4321");
+	snprintf(snap.captured_at, sizeof(snap.captured_at), "%s", "26/04/10 12:34:56");
+	snap.det_content = strdup(det);
+	snap.threads_content = strdup(threads);
+	append_snapshot(history, &history_count, &history_next, &snap);
+	current = get_snapshot_by_offset(history, history_count, history_next, 0);
+
+	print_live_snapshot(current, history, history_count, history_next, 0);
+
+	assert(strstr(output_buf, "OVERVIEW"));
+	assert(strstr(output_buf, "TRENDS"));
+	assert(strstr(output_buf, "CPU%"));
+	assert(strstr(output_buf, "|▁"));
+	assert(strstr(output_buf, "█|"));
+	assert(strstr(output_buf, "RX/s"));
+	assert(strstr(output_buf, "TX/s"));
+	{
+		char *rx_line = strstr(output_buf, "RX/s     |");
+		char *tx_line = strstr(output_buf, "TX/s     |");
+		char *p;
+		int has_blank_line = 0;
+
+		assert(rx_line);
+		assert(tx_line);
+		assert(tx_line > rx_line);
+
+		for (p = rx_line; p + 1 < tx_line; p++) {
+			if (p[0] == '\n' && p[1] == '\n') {
+				has_blank_line = 1;
+				break;
+			}
+		}
+		assert(has_blank_line);
+	}
+	assert(strstr(output_buf, "WR/s"));
+	assert(strstr(output_buf, "MEMORY SNAPSHOT"));
+	assert(strstr(output_buf, "NETWORK SNAPSHOT"));
+	assert(strstr(output_buf, "I/O SNAPSHOT"));
+	assert(strstr(output_buf, "THREAD HOTSPOTS"));
+	assert(strstr(output_buf, "CPU Usage:       77.50%"));
+	assert(strstr(output_buf, "RSS (Resident): 4096 KB"));
+	assert(strstr(output_buf, "sockets_total: 4 (tcp: 3, udp: 1, unix: 0)"));
+	assert(strstr(output_buf,
+		      "RANK  FD   PROTO   FAMILY      RX_BYTES   TX_BYTES   TOTAL_BYTES"));
+	assert(strstr(output_buf, "#1    9    TCP     AF_INET"));
+	assert(strstr(output_buf, "io_intensity: 3072"));
+	assert(strstr(output_buf, "Total threads: 3"));
+	assert(strstr(output_buf,
+		      "TID    NAME             CPU(%)   STATE  PRIORITY  NICE  CPU_AFFINITY"));
+	assert(strstr(output_buf, "worker-a"));
+	assert(strstr(output_buf, "worker-b"));
+
+	clear_snapshot_history(history, &history_count, &history_next);
+}
+
+static void test_capture_live_snapshot_reads_threads_for_overview(void)
+{
+	struct live_snapshot snap;
+	int rc;
+
+	reset_mocks();
+	rc = capture_live_snapshot("99", VIEW_OVERVIEW, &snap);
+
+	assert(rc == 0);
+	assert(snap.det_content != NULL);
+	assert(snap.threads_content != NULL);
+
+	free_snapshot(&snap);
+}
+
 static void test_format_current_time_layout(void)
 {
 	char buf[32];
@@ -425,12 +580,13 @@ static void test_live_header_and_footer_show_timestamps(void)
 	memset(&snap, 0, sizeof(snap));
 	snprintf(snap.pid, sizeof(snap.pid), "%s", "123");
 	snprintf(snap.captured_at, sizeof(snap.captured_at), "%s", "26/03/26 12:34:56");
-	snap.view = VIEW_MEMORY;
+	snap.view = VIEW_OVERVIEW;
 	print_live_header(&snap, 0, 1);
 	print_live_footer(snap.captured_at);
 
 	assert(strstr(output_buf, "Snapshot start: "));
 	assert(strstr(output_buf, "Snapshot end:   "));
+	assert(strstr(output_buf, "[5] Overview"));
 }
 
 static void test_snapshot_history_offset_navigation(void)
@@ -477,6 +633,8 @@ int main(void)
 	test_memory_view_filters_network_section();
 	test_network_view_starts_from_network_section();
 	test_io_view_starts_from_io_section();
+	test_overview_view_combines_sections();
+	test_capture_live_snapshot_reads_threads_for_overview();
 	test_format_current_time_layout();
 	test_live_header_and_footer_show_timestamps();
 	test_snapshot_history_offset_navigation();
