@@ -133,6 +133,17 @@ Overview mode includes trend lanes rendered from recent snapshot history:
 Each lane uses 32 samples and block-style histogram glyphs, with one blank line
 between lanes for readability.
 
+The Overview page is divided into four sub-sections printed below the trend lanes:
+
+- **MEMORY SNAPSHOT** — RSS, VSZ, Swap Usage, and Page Fault counts (major/minor).
+- **NETWORK SNAPSHOT** — socket total, cumulative rx/tx bytes, TCP retransmits, drops, and a
+  top-talkers table (up to 2 sockets ranked by total bytes: FD, proto, family, RX\_BYTES,
+  TX\_BYTES, TOTAL\_BYTES).
+- **I/O SNAPSHOT** — read\_bytes, write\_bytes, syscr, syscw, and io\_intensity (or an
+  aggregated `status` line when available).
+- **THREAD HOTSPOTS** — total thread count and up to 3 top threads by CPU usage (columns:
+  TID, name, CPU%, state, priority, nice, CPU affinity).
+
 Controls shown in the header:
 - `1` - Memory section
 - `2` - Network section
