@@ -183,6 +183,8 @@ Expected behavior:
 - Screen refreshes every 1 second
 - Header shows controls (`1` memory, `2` network, `3` threads, `4` I/O, `5` overview, `0` switch PID)
 - Each refresh shows `Snapshot start` and `Snapshot end` timestamps in `YY/MM/DD HH:MM:SS`
+- Overview page shows 32-sample block-style histogram trend lanes for CPU, RSS, RX/s, TX/s, and WR/s once enough samples are collected
+- Trend lanes are separated by one blank line (for example between RX/s and TX/s)
 - `Up`/`k` moves to older snapshots, `Down`/`j` moves toward newer snapshots
 - While browsing old snapshots, header indicates history-browsing mode
 - Press `f` to return to live-follow mode

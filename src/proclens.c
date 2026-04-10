@@ -80,10 +80,12 @@ static int set_raw_mode(void)
 	return 0;
 }
 
-#define PID_INPUT_MAX	20
-#define PROC_BUF_SIZE	262144
-#define MAX_SNAPSHOTS	120
-#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
+#define PID_INPUT_MAX	       20
+#define PROC_BUF_SIZE	       262144
+#define MAX_SNAPSHOTS	       120
+#define OVERVIEW_PLOT_WIDTH    32
+#define OVERVIEW_PLOT_BUF_SIZE ((OVERVIEW_PLOT_WIDTH * 4) + 1)
+#define ARRAY_SIZE(arr)	       (sizeof(arr) / sizeof((arr)[0]))
 
 enum view_mode {
 	VIEW_MEMORY = 1,
@@ -116,6 +118,24 @@ struct live_snapshot {
 	char captured_at[32];
 	char *det_content;
 	char *threads_content;
+};
+
+static struct live_snapshot *get_snapshot_by_offset(struct live_snapshot *history,
+						    int history_count,
+						    int history_next,
+						    int browse_offset);
+
+struct overview_metrics {
+	unsigned long long cpu_permyriad;
+	unsigned long long rss_kb;
+	unsigned long long rx_bytes;
+	unsigned long long tx_bytes;
+	unsigned long long write_bytes;
+	int has_cpu;
+	int has_rss;
+	int has_rx;
+	int has_tx;
+	int has_write;
 };
 
 static void print_logo_text(void)
@@ -426,6 +446,284 @@ copy_line_with_prefix(const char *content, const char *prefix, char *out, size_t
 	return 0;
 }
 
+static int parse_first_u64(const char *line, unsigned long long *value)
+{
+	const char *cursor;
+
+	if (!line || !value)
+		return 0;
+
+	cursor = line;
+	while (*cursor && (*cursor < '0' || *cursor > '9'))
+		cursor++;
+
+	if (*cursor == '\0')
+		return 0;
+
+	return sscanf(cursor, "%llu", value) == 1;
+}
+
+static void extract_overview_metrics(const struct live_snapshot *snapshot,
+				     struct overview_metrics *metrics)
+{
+	char line[256];
+	unsigned long long whole;
+	unsigned long long frac;
+
+	if (!metrics)
+		return;
+
+	memset(metrics, 0, sizeof(*metrics));
+	if (!snapshot || !snapshot->det_content)
+		return;
+
+	if (copy_line_with_prefix(snapshot->det_content, "CPU Usage:", line, sizeof(line)) &&
+	    sscanf(line, "CPU Usage: %llu.%llu%%", &whole, &frac) == 2) {
+		metrics->cpu_permyriad = (whole * 100ULL) + frac;
+		metrics->has_cpu = 1;
+	}
+
+	if (copy_line_with_prefix(snapshot->det_content, "  RSS (Resident):", line, sizeof(line)) &&
+	    parse_first_u64(line, &metrics->rss_kb)) {
+		metrics->has_rss = 1;
+	}
+
+	if (copy_line_with_prefix(snapshot->det_content, "rx_bytes:", line, sizeof(line)) &&
+	    parse_first_u64(line, &metrics->rx_bytes)) {
+		metrics->has_rx = 1;
+	}
+
+	if (copy_line_with_prefix(snapshot->det_content, "tx_bytes:", line, sizeof(line)) &&
+	    parse_first_u64(line, &metrics->tx_bytes)) {
+		metrics->has_tx = 1;
+	}
+
+	if (copy_line_with_prefix(snapshot->det_content, "write_bytes:", line, sizeof(line)) &&
+	    parse_first_u64(line, &metrics->write_bytes)) {
+		metrics->has_write = 1;
+	}
+}
+
+static void
+format_compact_size(unsigned long long value, char *out, size_t out_size, const char *suffix)
+{
+	static const char *const units[] = {"B", "KB", "MB", "GB", "TB"};
+	unsigned long long scaled = value;
+	int unit_index = 0;
+
+	if (!out || out_size == 0)
+		return;
+
+	while (scaled >= 1024 && unit_index < (int)ARRAY_SIZE(units) - 1) {
+		scaled /= 1024;
+		unit_index++;
+	}
+
+	if (suffix)
+		snprintf(out, out_size, "%llu %s%s", scaled, units[unit_index], suffix);
+	else
+		snprintf(out, out_size, "%llu %s", scaled, units[unit_index]);
+}
+
+static void
+render_sparkline(const unsigned long long *values, int value_count, char *out, size_t out_size)
+{
+	static const char *const levels[] = {"▁", "▂", "▃", "▄", "▅", "▆", "▇", "█"};
+	unsigned long long min_value;
+	unsigned long long max_value;
+	unsigned long long range;
+	size_t out_len = 0;
+	int i;
+	int levels_count;
+
+	if (!out || out_size == 0)
+		return;
+
+	out[0] = '\0';
+	if (!values || value_count <= 0)
+		return;
+
+	min_value = values[0];
+	max_value = values[0];
+	for (i = 1; i < value_count; i++) {
+		if (values[i] < min_value)
+			min_value = values[i];
+		if (values[i] > max_value)
+			max_value = values[i];
+	}
+
+	range = max_value - min_value;
+	levels_count = (int)ARRAY_SIZE(levels);
+	for (i = 0; i < value_count; i++) {
+		const char *glyph;
+		int level_index;
+		size_t glyph_len;
+
+		if (range == 0)
+			glyph = max_value == 0 ? levels[0] : levels[levels_count - 1];
+		else {
+			level_index = (int)(((values[i] - min_value) * (levels_count - 1)) / range);
+			if (values[i] > 0 && level_index < levels_count - 1)
+				level_index++;
+			glyph = levels[level_index];
+		}
+
+		glyph_len = strlen(glyph);
+		if (out_len + glyph_len >= out_size)
+			break;
+
+		memcpy(out + out_len, glyph, glyph_len);
+		out_len += glyph_len;
+	}
+	out[out_len] = '\0';
+}
+
+static int collect_overview_series(const struct live_snapshot *history,
+				   int history_count,
+				   int history_next,
+				   int browse_offset,
+				   unsigned long long *cpu_values,
+				   unsigned long long *rss_values,
+				   unsigned long long *rx_rate_values,
+				   unsigned long long *tx_rate_values,
+				   unsigned long long *write_rate_values,
+				   int max_values)
+{
+	struct overview_metrics previous_metrics;
+	int start_offset;
+	int offset;
+	int points = 0;
+	int have_previous = 0;
+
+	if (!history || history_count <= 0 || max_values <= 0)
+		return 0;
+
+	start_offset = browse_offset + max_values - 1;
+	if (start_offset >= history_count)
+		start_offset = history_count - 1;
+
+	memset(&previous_metrics, 0, sizeof(previous_metrics));
+	for (offset = start_offset; offset >= browse_offset; offset--) {
+		struct live_snapshot *snap;
+		struct overview_metrics metrics;
+
+		snap = get_snapshot_by_offset((struct live_snapshot *)history, history_count,
+					      history_next, offset);
+		if (!snap)
+			continue;
+
+		extract_overview_metrics(snap, &metrics);
+		cpu_values[points] = metrics.has_cpu ? metrics.cpu_permyriad : 0;
+		rss_values[points] = metrics.has_rss ? metrics.rss_kb : 0;
+
+		if (have_previous && metrics.has_rx && previous_metrics.has_rx &&
+		    metrics.rx_bytes >= previous_metrics.rx_bytes) {
+			rx_rate_values[points] = metrics.rx_bytes - previous_metrics.rx_bytes;
+		} else {
+			rx_rate_values[points] = 0;
+		}
+
+		if (have_previous && metrics.has_tx && previous_metrics.has_tx &&
+		    metrics.tx_bytes >= previous_metrics.tx_bytes) {
+			tx_rate_values[points] = metrics.tx_bytes - previous_metrics.tx_bytes;
+		} else {
+			tx_rate_values[points] = 0;
+		}
+
+		if (have_previous && metrics.has_write && previous_metrics.has_write &&
+		    metrics.write_bytes >= previous_metrics.write_bytes) {
+			write_rate_values[points] =
+				metrics.write_bytes - previous_metrics.write_bytes;
+		} else {
+			write_rate_values[points] = 0;
+		}
+
+		previous_metrics = metrics;
+		have_previous = 1;
+		points++;
+	}
+
+	return points;
+}
+
+static void print_overview_plots(const struct live_snapshot *snapshot,
+				 const struct live_snapshot *history,
+				 int history_count,
+				 int history_next,
+				 int browse_offset)
+{
+	unsigned long long cpu_values[OVERVIEW_PLOT_WIDTH];
+	unsigned long long rss_values[OVERVIEW_PLOT_WIDTH];
+	unsigned long long rx_rate_values[OVERVIEW_PLOT_WIDTH];
+	unsigned long long tx_rate_values[OVERVIEW_PLOT_WIDTH];
+	unsigned long long write_rate_values[OVERVIEW_PLOT_WIDTH];
+	struct overview_metrics current_metrics;
+	char cpu_plot[OVERVIEW_PLOT_BUF_SIZE];
+	char rss_plot[OVERVIEW_PLOT_BUF_SIZE];
+	char rx_plot[OVERVIEW_PLOT_BUF_SIZE];
+	char tx_plot[OVERVIEW_PLOT_BUF_SIZE];
+	char write_plot[OVERVIEW_PLOT_BUF_SIZE];
+	char rss_label[32];
+	char rx_label[32];
+	char tx_label[32];
+	char write_label[32];
+	unsigned long long current_rx_rate = 0;
+	unsigned long long current_tx_rate = 0;
+	unsigned long long current_write_rate = 0;
+	int point_count;
+
+	memset(cpu_values, 0, sizeof(cpu_values));
+	memset(rss_values, 0, sizeof(rss_values));
+	memset(rx_rate_values, 0, sizeof(rx_rate_values));
+	memset(tx_rate_values, 0, sizeof(tx_rate_values));
+	memset(write_rate_values, 0, sizeof(write_rate_values));
+
+	point_count = collect_overview_series(
+		history, history_count, history_next, browse_offset, cpu_values, rss_values,
+		rx_rate_values, tx_rate_values, write_rate_values, ARRAY_SIZE(cpu_values));
+	render_sparkline(cpu_values, point_count, cpu_plot, sizeof(cpu_plot));
+	render_sparkline(rss_values, point_count, rss_plot, sizeof(rss_plot));
+	render_sparkline(rx_rate_values, point_count, rx_plot, sizeof(rx_plot));
+	render_sparkline(tx_rate_values, point_count, tx_plot, sizeof(tx_plot));
+	render_sparkline(write_rate_values, point_count, write_plot, sizeof(write_plot));
+
+	extract_overview_metrics(snapshot, &current_metrics);
+	if (point_count > 0) {
+		current_rx_rate = rx_rate_values[point_count - 1];
+		current_tx_rate = tx_rate_values[point_count - 1];
+		current_write_rate = write_rate_values[point_count - 1];
+	}
+
+	format_compact_size(current_metrics.rss_kb * 1024ULL, rss_label, sizeof(rss_label), NULL);
+	format_compact_size(current_rx_rate, rx_label, sizeof(rx_label), "/s");
+	format_compact_size(current_tx_rate, tx_label, sizeof(tx_label), "/s");
+	format_compact_size(current_write_rate, write_label, sizeof(write_label), "/s");
+
+	printf("%s%sTRENDS%s\n", color_code(C_CYAN), color_code(C_BOLD), color_code(C_RESET));
+	if (point_count <= 0) {
+		puts("  collecting samples...");
+		puts("");
+		return;
+	}
+
+	printf("%s  CPU%%     |%s|  %4llu.%02llu%%%s\n", color_code(C_CYAN), cpu_plot,
+	       current_metrics.cpu_permyriad / 100ULL, current_metrics.cpu_permyriad % 100ULL,
+	       color_code(C_RESET));
+	puts("");
+	printf("%s  RSS      |%s|  %s%s\n", color_code(C_CYAN), rss_plot, rss_label,
+	       color_code(C_RESET));
+	puts("");
+	printf("%s  RX/s     |%s|  %s%s\n", color_code(C_CYAN), rx_plot, rx_label,
+	       color_code(C_RESET));
+	puts("");
+	printf("%s  TX/s     |%s|  %s%s\n", color_code(C_CYAN), tx_plot, tx_label,
+	       color_code(C_RESET));
+	puts("");
+	printf("%s  WR/s     |%s|  %s%s\n", color_code(C_CYAN), write_plot, write_label,
+	       color_code(C_RESET));
+	puts("");
+}
+
 static int collect_top_talkers(const char *det_content,
 			       struct overview_talker_entry *talkers,
 			       int max_talkers,
@@ -548,7 +846,11 @@ static int collect_top_threads(const char *threads_content,
 	return count;
 }
 
-static void print_overview_view(const struct live_snapshot *snapshot)
+static void print_overview_view(const struct live_snapshot *snapshot,
+				const struct live_snapshot *history,
+				int history_count,
+				int history_next,
+				int browse_offset)
 {
 	char rss_line[256];
 	char vsz_line[256];
@@ -644,6 +946,7 @@ static void print_overview_view(const struct live_snapshot *snapshot)
 
 	printf("%s%sOVERVIEW%s\n", color_code(C_GREEN), color_code(C_BOLD), color_code(C_RESET));
 	puts("---------------------------------------------------------------");
+	print_overview_plots(snapshot, history, history_count, history_next, browse_offset);
 
 	printf("%s%sMEMORY SNAPSHOT%s\n", color_code(C_BLUE), color_code(C_BOLD),
 	       color_code(C_RESET));
@@ -1163,7 +1466,11 @@ fail:
 	return -1;
 }
 
-static void print_live_snapshot(const struct live_snapshot *snapshot)
+static void print_live_snapshot(const struct live_snapshot *snapshot,
+				const struct live_snapshot *history,
+				int history_count,
+				int history_next,
+				int browse_offset)
 {
 	if (!snapshot->det_content)
 		return;
@@ -1179,7 +1486,7 @@ static void print_live_snapshot(const struct live_snapshot *snapshot)
 	print_det_preamble(snapshot->det_content);
 
 	if (snapshot->view == VIEW_OVERVIEW) {
-		print_overview_view(snapshot);
+		print_overview_view(snapshot, history, history_count, history_next, browse_offset);
 		print_live_footer(snapshot->captured_at);
 		return;
 	}
@@ -1292,7 +1599,8 @@ static void run_live_mode(void)
 			get_snapshot_by_offset(history, history_count, history_next, browse_offset);
 		if (current) {
 			print_live_header(current, browse_offset, history_count);
-			print_live_snapshot(current);
+			print_live_snapshot(current, history, history_count, history_next,
+					    browse_offset);
 		}
 
 		fflush(stdout);

@@ -393,7 +393,11 @@ static void test_io_view_starts_from_io_section(void)
 
 static void test_overview_view_combines_sections(void)
 {
+	struct live_snapshot history[MAX_SNAPSHOTS];
 	struct live_snapshot snap;
+	struct live_snapshot *current;
+	int history_count = 0;
+	int history_next = 0;
 	const char *det =
 		"Process ID:      4321\n"
 		"Name:            demo\n"
@@ -421,6 +425,32 @@ static void test_overview_view_combines_sections(void)
 		"read_bytes: 1024\n"
 		"write_bytes: 2048\n"
 		"io_intensity: 3072\n";
+	const char *det_older_1 = "Process ID:      4321\n"
+				  "Name:            demo\n"
+				  "CPU Usage:       12.50%\n"
+				  "Memory Pressure Statistics:\n"
+				  "  RSS (Resident): 2048 KB\n"
+				  "[network]\n"
+				  "rx_bytes: 100\n"
+				  "tx_bytes: 150\n"
+				  "top_talkers:\n"
+				  "  none\n"
+				  "Open Sockets:\n"
+				  "[io]\n"
+				  "write_bytes: 300\n";
+	const char *det_older_2 = "Process ID:      4321\n"
+				  "Name:            demo\n"
+				  "CPU Usage:       30.00%\n"
+				  "Memory Pressure Statistics:\n"
+				  "  RSS (Resident): 3072 KB\n"
+				  "[network]\n"
+				  "rx_bytes: 400\n"
+				  "tx_bytes: 600\n"
+				  "top_talkers:\n"
+				  "  none\n"
+				  "Open Sockets:\n"
+				  "[io]\n"
+				  "write_bytes: 900\n";
 	const char *threads =
 		"TID    NAME             CPU(%)   STATE  PRIORITY  NICE  CPU_AFFINITY\n"
 		"-----  ---------------  -------  -----  --------  ----  ----------------\n"
@@ -431,16 +461,56 @@ static void test_overview_view_combines_sections(void)
 		"Total threads: 3\n";
 
 	reset_mocks();
+	memset(history, 0, sizeof(history));
+	memset(&snap, 0, sizeof(snap));
+	snap.view = VIEW_OVERVIEW;
+	snap.det_content = strdup(det_older_1);
+	snap.threads_content = strdup(threads);
+	append_snapshot(history, &history_count, &history_next, &snap);
+
+	memset(&snap, 0, sizeof(snap));
+	snap.view = VIEW_OVERVIEW;
+	snap.det_content = strdup(det_older_2);
+	snap.threads_content = strdup(threads);
+	append_snapshot(history, &history_count, &history_next, &snap);
+
 	memset(&snap, 0, sizeof(snap));
 	snap.view = VIEW_OVERVIEW;
 	snprintf(snap.pid, sizeof(snap.pid), "%s", "4321");
 	snprintf(snap.captured_at, sizeof(snap.captured_at), "%s", "26/04/10 12:34:56");
 	snap.det_content = strdup(det);
 	snap.threads_content = strdup(threads);
+	append_snapshot(history, &history_count, &history_next, &snap);
+	current = get_snapshot_by_offset(history, history_count, history_next, 0);
 
-	print_live_snapshot(&snap);
+	print_live_snapshot(current, history, history_count, history_next, 0);
 
 	assert(strstr(output_buf, "OVERVIEW"));
+	assert(strstr(output_buf, "TRENDS"));
+	assert(strstr(output_buf, "CPU%"));
+	assert(strstr(output_buf, "|▁"));
+	assert(strstr(output_buf, "█|"));
+	assert(strstr(output_buf, "RX/s"));
+	assert(strstr(output_buf, "TX/s"));
+	{
+		char *rx_line = strstr(output_buf, "RX/s     |");
+		char *tx_line = strstr(output_buf, "TX/s     |");
+		char *p;
+		int has_blank_line = 0;
+
+		assert(rx_line);
+		assert(tx_line);
+		assert(tx_line > rx_line);
+
+		for (p = rx_line; p + 1 < tx_line; p++) {
+			if (p[0] == '\n' && p[1] == '\n') {
+				has_blank_line = 1;
+				break;
+			}
+		}
+		assert(has_blank_line);
+	}
+	assert(strstr(output_buf, "WR/s"));
 	assert(strstr(output_buf, "MEMORY SNAPSHOT"));
 	assert(strstr(output_buf, "NETWORK SNAPSHOT"));
 	assert(strstr(output_buf, "I/O SNAPSHOT"));
@@ -458,8 +528,7 @@ static void test_overview_view_combines_sections(void)
 	assert(strstr(output_buf, "worker-a"));
 	assert(strstr(output_buf, "worker-b"));
 
-	free(snap.det_content);
-	free(snap.threads_content);
+	clear_snapshot_history(history, &history_count, &history_next);
 }
 
 static void test_capture_live_snapshot_reads_threads_for_overview(void)
