@@ -422,8 +422,8 @@ static void test_overview_view_combines_sections(void)
 		"[io]\n"
 		"syscr: 12\n"
 		"syscw: 13\n"
-		"read_bytes: 1024\n"
-		"write_bytes: 2048\n"
+		"read_bytes: 1 GB\n"
+		"write_bytes: 2 GB\n"
 		"io_intensity: 3072\n";
 	const char *det_older_1 = "Process ID:      4321\n"
 				  "Name:            demo\n"
@@ -437,6 +437,7 @@ static void test_overview_view_combines_sections(void)
 				  "  none\n"
 				  "Open Sockets:\n"
 				  "[io]\n"
+				  "read_bytes: 100 MB\n"
 				  "write_bytes: 300\n";
 	const char *det_older_2 = "Process ID:      4321\n"
 				  "Name:            demo\n"
@@ -450,7 +451,8 @@ static void test_overview_view_combines_sections(void)
 				  "  none\n"
 				  "Open Sockets:\n"
 				  "[io]\n"
-				  "write_bytes: 900\n";
+				  "read_bytes: 512 MB\n"
+				  "write_bytes: 900 MB\n";
 	const char *threads =
 		"TID    NAME             CPU(%)   STATE  PRIORITY  NICE  CPU_AFFINITY\n"
 		"-----  ---------------  -------  -----  --------  ----  ----------------\n"
@@ -492,6 +494,7 @@ static void test_overview_view_combines_sections(void)
 	assert(strstr(output_buf, "█|"));
 	assert(strstr(output_buf, "RX/s"));
 	assert(strstr(output_buf, "TX/s"));
+	assert(strstr(output_buf, "RD/s"));
 	{
 		char *rx_line = strstr(output_buf, "RX/s     |");
 		char *tx_line = strstr(output_buf, "TX/s     |");
@@ -511,6 +514,8 @@ static void test_overview_view_combines_sections(void)
 		assert(has_blank_line);
 	}
 	assert(strstr(output_buf, "WR/s"));
+	assert(strstr(output_buf, "512 MB/s"));
+	assert(strstr(output_buf, "1 GB/s"));
 	assert(strstr(output_buf, "MEMORY SNAPSHOT"));
 	assert(strstr(output_buf, "NETWORK SNAPSHOT"));
 	assert(strstr(output_buf, "I/O SNAPSHOT"));

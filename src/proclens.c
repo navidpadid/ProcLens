@@ -4,6 +4,7 @@
 #include <string.h>
 #include <stdlib.h>
 #include <signal.h>
+#include <limits.h>
 #include <sys/select.h>
 #include <termios.h>
 #include <time.h>
@@ -130,11 +131,13 @@ struct overview_metrics {
 	unsigned long long rss_kb;
 	unsigned long long rx_bytes;
 	unsigned long long tx_bytes;
+	unsigned long long read_bytes;
 	unsigned long long write_bytes;
 	int has_cpu;
 	int has_rss;
 	int has_rx;
 	int has_tx;
+	int has_read;
 	int has_write;
 };
 
@@ -469,6 +472,48 @@ static int parse_first_u64(const char *line, unsigned long long *value)
 	return sscanf(cursor, "%llu", value) == 1;
 }
 
+static int parse_size_field_bytes(const char *line, unsigned long long *value)
+{
+	char unit[8] = {0};
+	const char *cursor;
+	unsigned long long number;
+	unsigned long long multiplier = 1;
+
+	if (!line || !value)
+		return 0;
+
+	cursor = line;
+	while (*cursor && (*cursor < '0' || *cursor > '9'))
+		cursor++;
+
+	if (*cursor == '\0')
+		return 0;
+
+	if (sscanf(cursor, "%llu %7s", &number, unit) < 1)
+		return 0;
+
+	if (unit[0] != '\0') {
+		if (strcmp(unit, "B") == 0)
+			multiplier = 1;
+		else if (strcmp(unit, "KB") == 0)
+			multiplier = 1024ULL;
+		else if (strcmp(unit, "MB") == 0)
+			multiplier = 1024ULL * 1024ULL;
+		else if (strcmp(unit, "GB") == 0)
+			multiplier = 1024ULL * 1024ULL * 1024ULL;
+		else if (strcmp(unit, "TB") == 0)
+			multiplier = 1024ULL * 1024ULL * 1024ULL * 1024ULL;
+		else
+			return 0;
+	}
+
+	if (number > (ULLONG_MAX / multiplier))
+		return 0;
+
+	*value = number * multiplier;
+	return 1;
+}
+
 static void extract_overview_metrics(const struct live_snapshot *snapshot,
 				     struct overview_metrics *metrics)
 {
@@ -495,17 +540,22 @@ static void extract_overview_metrics(const struct live_snapshot *snapshot,
 	}
 
 	if (copy_line_with_prefix(snapshot->det_content, "rx_bytes:", line, sizeof(line)) &&
-	    parse_first_u64(line, &metrics->rx_bytes)) {
+	    parse_size_field_bytes(line, &metrics->rx_bytes)) {
 		metrics->has_rx = 1;
 	}
 
 	if (copy_line_with_prefix(snapshot->det_content, "tx_bytes:", line, sizeof(line)) &&
-	    parse_first_u64(line, &metrics->tx_bytes)) {
+	    parse_size_field_bytes(line, &metrics->tx_bytes)) {
 		metrics->has_tx = 1;
 	}
 
+	if (copy_line_with_prefix(snapshot->det_content, "read_bytes:", line, sizeof(line)) &&
+	    parse_size_field_bytes(line, &metrics->read_bytes)) {
+		metrics->has_read = 1;
+	}
+
 	if (copy_line_with_prefix(snapshot->det_content, "write_bytes:", line, sizeof(line)) &&
-	    parse_first_u64(line, &metrics->write_bytes)) {
+	    parse_size_field_bytes(line, &metrics->write_bytes)) {
 		metrics->has_write = 1;
 	}
 }
@@ -592,6 +642,7 @@ static int collect_overview_series(const struct live_snapshot *history,
 				   unsigned long long *rss_values,
 				   unsigned long long *rx_rate_values,
 				   unsigned long long *tx_rate_values,
+				   unsigned long long *read_rate_values,
 				   unsigned long long *write_rate_values,
 				   int max_values)
 {
@@ -636,6 +687,13 @@ static int collect_overview_series(const struct live_snapshot *history,
 			tx_rate_values[points] = 0;
 		}
 
+		if (have_previous && metrics.has_read && previous_metrics.has_read &&
+		    metrics.read_bytes >= previous_metrics.read_bytes) {
+			read_rate_values[points] = metrics.read_bytes - previous_metrics.read_bytes;
+		} else {
+			read_rate_values[points] = 0;
+		}
+
 		if (have_previous && metrics.has_write && previous_metrics.has_write &&
 		    metrics.write_bytes >= previous_metrics.write_bytes) {
 			write_rate_values[points] =
@@ -662,19 +720,23 @@ static void print_overview_plots(const struct live_snapshot *snapshot,
 	unsigned long long rss_values[OVERVIEW_PLOT_WIDTH];
 	unsigned long long rx_rate_values[OVERVIEW_PLOT_WIDTH];
 	unsigned long long tx_rate_values[OVERVIEW_PLOT_WIDTH];
+	unsigned long long read_rate_values[OVERVIEW_PLOT_WIDTH];
 	unsigned long long write_rate_values[OVERVIEW_PLOT_WIDTH];
 	struct overview_metrics current_metrics;
 	char cpu_plot[OVERVIEW_PLOT_BUF_SIZE];
 	char rss_plot[OVERVIEW_PLOT_BUF_SIZE];
 	char rx_plot[OVERVIEW_PLOT_BUF_SIZE];
 	char tx_plot[OVERVIEW_PLOT_BUF_SIZE];
+	char read_plot[OVERVIEW_PLOT_BUF_SIZE];
 	char write_plot[OVERVIEW_PLOT_BUF_SIZE];
 	char rss_label[32];
 	char rx_label[32];
 	char tx_label[32];
+	char read_label[32];
 	char write_label[32];
 	unsigned long long current_rx_rate = 0;
 	unsigned long long current_tx_rate = 0;
+	unsigned long long current_read_rate = 0;
 	unsigned long long current_write_rate = 0;
 	int point_count;
 
@@ -682,27 +744,32 @@ static void print_overview_plots(const struct live_snapshot *snapshot,
 	memset(rss_values, 0, sizeof(rss_values));
 	memset(rx_rate_values, 0, sizeof(rx_rate_values));
 	memset(tx_rate_values, 0, sizeof(tx_rate_values));
+	memset(read_rate_values, 0, sizeof(read_rate_values));
 	memset(write_rate_values, 0, sizeof(write_rate_values));
 
-	point_count = collect_overview_series(
-		history, history_count, history_next, browse_offset, cpu_values, rss_values,
-		rx_rate_values, tx_rate_values, write_rate_values, ARRAY_SIZE(cpu_values));
+	point_count = collect_overview_series(history, history_count, history_next, browse_offset,
+					      cpu_values, rss_values, rx_rate_values,
+					      tx_rate_values, read_rate_values, write_rate_values,
+					      ARRAY_SIZE(cpu_values));
 	render_sparkline(cpu_values, point_count, cpu_plot, sizeof(cpu_plot));
 	render_sparkline(rss_values, point_count, rss_plot, sizeof(rss_plot));
 	render_sparkline(rx_rate_values, point_count, rx_plot, sizeof(rx_plot));
 	render_sparkline(tx_rate_values, point_count, tx_plot, sizeof(tx_plot));
+	render_sparkline(read_rate_values, point_count, read_plot, sizeof(read_plot));
 	render_sparkline(write_rate_values, point_count, write_plot, sizeof(write_plot));
 
 	extract_overview_metrics(snapshot, &current_metrics);
 	if (point_count > 0) {
 		current_rx_rate = rx_rate_values[point_count - 1];
 		current_tx_rate = tx_rate_values[point_count - 1];
+		current_read_rate = read_rate_values[point_count - 1];
 		current_write_rate = write_rate_values[point_count - 1];
 	}
 
 	format_compact_size(current_metrics.rss_kb * 1024ULL, rss_label, sizeof(rss_label), NULL);
 	format_compact_size(current_rx_rate, rx_label, sizeof(rx_label), "/s");
 	format_compact_size(current_tx_rate, tx_label, sizeof(tx_label), "/s");
+	format_compact_size(current_read_rate, read_label, sizeof(read_label), "/s");
 	format_compact_size(current_write_rate, write_label, sizeof(write_label), "/s");
 
 	printf("%s%sTRENDS%s\n", color_code(C_CYAN), color_code(C_BOLD), color_code(C_RESET));
@@ -723,6 +790,9 @@ static void print_overview_plots(const struct live_snapshot *snapshot,
 	       color_code(C_RESET));
 	puts("");
 	printf("%s  TX/s     |%s|  %s%s\n", color_code(C_CYAN), tx_plot, tx_label,
+	       color_code(C_RESET));
+	puts("");
+	printf("%s  RD/s     |%s|  %s%s\n", color_code(C_CYAN), read_plot, read_label,
 	       color_code(C_RESET));
 	puts("");
 	printf("%s  WR/s     |%s|  %s%s\n", color_code(C_CYAN), write_plot, write_label,
