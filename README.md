@@ -48,7 +48,7 @@
 
 ### Prerequisites
 
-- **Rust** 1.75+ (`rustup` recommended)
+- **Rust** 1.75+ or **Devbox** (`devbox shell` sets up everything)
 - Linux with `/proc` filesystem (any distro, no kernel headers needed)
 
 ### Build and Run
@@ -212,9 +212,9 @@ ProcLens/
 ├── docs/               # Detailed documentation
 ├── e2e/                # End-to-end testing scripts
 ├── src/                # Rust source (main, collector, procfs, render, live, util, config)
-│   ├── proclens.c/h    # Legacy C sources (archived)
-│   └── test_multithread.c
+│   └── test_multithread.c  # C helper for multi-thread testing
 ├── Cargo.toml          # Rust manifest
+├── devbox.json         # Devbox environment
 ├── build/              # Build artifacts
 └── Makefile            # Build shim (cargo build/test/fmt/clippy)
 ```
@@ -260,9 +260,9 @@ Unit tests for all pure helpers and procfs parsing.
 ## Contributing
 
 Contributions welcome! The project includes:
-- Pre-configured dev container
-- Automated testing (unit tests + QEMU E2E)
-- Static analysis and formatting tools
+- Devbox for reproducible dev environments (`devbox shell`)
+- Automated testing (`cargo test`)
+- `cargo fmt` + `cargo clippy` with CI enforcement
 - GitHub Actions CI/CD
 
 ## License

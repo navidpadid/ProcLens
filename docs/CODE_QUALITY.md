@@ -1,140 +1,60 @@
-# Code Quality and Static Analysis
+# Code Quality
 
-This project includes comprehensive static analysis and code formatting tools to ensure high code quality and compliance with Linux kernel coding standards.
+## Tools
 
-**All tools and hooks are automatically installed and configured in the dev container.** No manual setup required!
+### cargo fmt
+
+Code formatter — 100-column limit, Rust 2021 edition.
+
+```bash
+cargo fmt
+cargo fmt -- --check  # CI check
+```
+
+Configuration: `rustfmt.toml`
+
+### cargo clippy
+
+Linter for common mistakes and style issues.
+
+```bash
+cargo clippy
+```
+
+### cargo test
+
+Unit tests for all pure helpers and procfs parsing.
+
+```bash
+cargo test
+```
 
 ## Quick Reference
 
 ```bash
-make format          # Format all source files
-make format-check    # Check if code is properly formatted (CI-friendly)
-make check           # Run all static analysis checks
-make checkpatch      # Kernel coding style
-make sparse          # Kernel static analysis
-make cppcheck        # General C/C++ analysis
-CPPCHECK_JOBS=8 make cppcheck  # Optional: control cppcheck parallelism
+make format        # cargo fmt
+make format-check  # cargo fmt -- --check
+make check         # cargo clippy
+make clippy        # cargo clippy
+make unit          # cargo test
 ```
 
-## Tools Integrated
+## Pre-commit
 
-### 1. clang-format
-**Purpose**: Automatic code formatting  
-**Standard**: Linux kernel coding style  
-**Configuration**: `.clang-format`
-
-**Features**:
-- 8-space tabs (kernel standard)
-- 100-column line limit (relaxed kernel baseline used by this project)
-- Linux brace style
-- Consistent spacing and alignment
-
-### 2. checkpatch.pl
-**Purpose**: Kernel coding style compliance  
-**Source**: Official Linux kernel scripts  
-
-**Note**:
-- checkpatch.pl requires kernel headers for the running kernel.
-- The dev container post-create script installs `linux-headers-$(uname -r)` to avoid version mismatches.
-
-**Checks**:
-- Indentation and spacing rules
-- Line length limits (warns above 80 columns; project uses a 100-column limit)
-- Function declaration style
-- Comment formatting (/* */ style)
-- Macro usage patterns
-- Variable naming conventions
-
-**Project usage**:
-- `make checkpatch` runs `checkpatch.pl --no-tree --strict --file` on all `src/*.c` and `src/*.h`
-- The pre-commit hook runs checkpatch on staged `*.c` and `*.h` files
-
-### 3. sparse
-**Purpose**: Semantic analysis for C code  
-**Specialty**: Kernel-specific checks  
-
-**Detects**:
-- Type confusion errors
-- Endianness issues (`__be32`, `__le32`)
-- Lock context imbalances
-- Address space mismatches (`__user`, `__kernel`)
-- Null pointer dereferences
-
-### 4. cppcheck
-**Purpose**: General C/C++ static analysis  
-**Configuration**: `.cppcheck-suppressions`
-
-**Detects**:
-- Memory leaks
-- Buffer overflows
-- Uninitialized variables
-- Dead code
-- Logic errors
-
-## Configuration Files
-
-- **`.clang-format`** - Code formatting rules (Linux kernel style)
-- **`.cppcheck-suppressions`** - Suppression list for false positives
-- **`.editorconfig`** - Editor configuration for consistent coding style
-
-## Git Hooks
-
-Pre-commit hooks are automatically installed on container startup.
-
-The pre-commit hook runs:
-- Code formatting checks
-- Cppcheck static analysis
-- Checkpatch validation for staged C/header files
-
-Hook location: `.github/pre-commit.sh`
-
-To bypass hooks (use sparingly):
-```bash
-git commit --no-verify -m "message"
-```
-
-## Best Practices
-
-**Follow Linux Kernel Coding Style:**
-- Use tabs (8 spaces), not spaces for indentation
-- 100 column limit for code (project baseline; checkpatch warns above 80)
-- Opening brace on same line (except functions)
-- Space after keywords: `if (`, `while (`, `for (`
-- No space after function names: `function(arg)`
-- Use C89-style comments: `/* comment */`
-
-**Example:**
-```c
-int example_function(int param)
-{
-	if (param > 0) {
-		/* Comment style: C89 */
-		return param * 2;
-	}
-	return 0;
-}
-```
-
-## Development Workflow
+Install the pre-commit hook:
 
 ```bash
-# Everything is ready - just start coding!
-
-# Format code before committing
-make format
-
-# Run all checks
-make check
-
-# Optional stricter local gate before opening PR
-make format-check && make checkpatch && make sparse && make cppcheck
-
-# Commit (hooks run automatically)
-git commit -m "Your message"
+cp .github/pre-commit.sh .git/hooks/pre-commit
+chmod +x .git/hooks/pre-commit
 ```
 
-## Notes on Enforcement
+The hook runs `cargo fmt --check` and `cargo clippy`.
 
-- `make check` is a convenience aggregator for static analysis output.
-- Some tool invocations in the Makefile are best-effort (`|| true`) to keep developer flow smooth.
-- For release/PR readiness, treat any checkpatch/sparse/cppcheck findings as actionable and resolve them.
+## CI
+
+GitHub Actions runs on every push/PR:
+
+- `cargo build --release` — build verification
+- `cargo fmt -- --check` — formatting
+- `cargo clippy` — linting
+- `cargo test` — unit tests

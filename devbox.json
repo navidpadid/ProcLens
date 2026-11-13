@@ -1,0 +1,32 @@
+{
+  "packages": [
+    "rustup@latest",
+    "gcc@latest",
+    "gnumake@latest",
+    "pkg-config@latest"
+  ],
+  "shell": {
+    "init_hook": [
+      "export PATH=\"$HOME/.cargo/bin:$PATH\"",
+      "if ! command -v cargo &>/dev/null; then",
+      "  echo \"Installing Rust toolchain...\"",
+      "  rustup default stable",
+      "fi",
+      "echo \"ProcLens dev environment ready\"",
+      "echo \"  cargo build --release  # build\"",
+      "echo \"  cargo test             # test\"",
+      "echo \"  cargo fmt              # format\"",
+      "echo \"  cargo clippy           # lint\""
+    ],
+    "scripts": {
+      "build": "cargo build --release && mkdir -p build && cp target/release/proclens build/",
+      "test": "cargo test",
+      "fmt": "cargo fmt",
+      "lint": "cargo clippy",
+      "check": "cargo fmt -- --check && cargo clippy && cargo test"
+    }
+  },
+  "env": {
+    "RUST_BACKTRACE": "1"
+  }
+}
