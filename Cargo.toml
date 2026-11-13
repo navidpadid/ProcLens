@@ -7,7 +7,7 @@ license = "MIT"
 rust-version = "1.75"
 
 [dependencies]
-clap = { version = "4", features = ["derive"] }
+clap = { version = "=4.5.4", features = ["derive"] }
 anyhow = "1"
 thiserror = "2"
 nix = { version = "0.27", features = ["process", "sched", "signal"] }

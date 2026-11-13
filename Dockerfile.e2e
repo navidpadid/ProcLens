@@ -1,0 +1,9 @@
+FROM rust:1.75-bookworm
+RUN apt-get update && apt-get install -y gcc make pkg-config procps && rm -rf /var/lib/apt/lists/*
+WORKDIR /app
+COPY Cargo.toml Cargo.lock rustfmt.toml Makefile ./
+COPY src/ src/
+COPY docs/ docs/
+RUN cargo build --release && mkdir -p build && cp target/release/proclens build/
+RUN gcc -Wall -pthread -o build/test_multithread src/test_multithread.c || echo "no test_multithread"
+CMD ["bash"]

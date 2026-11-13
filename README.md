@@ -176,6 +176,22 @@ Builds the multi-threaded test program and validates output.
 PROCLENS_PROC_DIR=/tmp/fake_proc ./target/release/proclens 123  # with fake proc
 ```
 
+### E2E Testing (Docker)
+
+```bash
+./e2e.sh                            # build + run all E2E tests in Docker
+# or manually:
+docker build -f Dockerfile.e2e -t proclens-e2e .
+docker run --rm proclens-e2e ./build/proclens 1
+docker run --rm proclens-e2e bash -c './build/test_multithread & sleep 1; ./build/proclens $!; wait'
+```
+
+For live dashboard testing, run interactively:
+
+```bash
+docker run --rm -it proclens-e2e ./build/proclens
+```
+
 ## Architecture Diagram
 
 ```mermaid
