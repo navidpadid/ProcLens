@@ -8,6 +8,18 @@ use crate::util;
 use anyhow::Result;
 use crossterm::event::{self, Event, KeyCode, KeyEvent};
 use crossterm::terminal::{disable_raw_mode, enable_raw_mode};
+
+fn fix_raw_output() {
+    // crossterm raw mode disables OPOST, so \n doesn't do \r\n.
+    // Re-enable OPOST so println! works correctly.
+    unsafe {
+        let mut termios: libc::termios = std::mem::zeroed();
+        if libc::tcgetattr(libc::STDIN_FILENO, &mut termios) == 0 {
+            termios.c_oflag |= libc::OPOST;
+            libc::tcsetattr(libc::STDIN_FILENO, libc::TCSANOW, &mut termios);
+        }
+    }
+}
 use std::collections::VecDeque;
 use std::io::{self, Write};
 use std::time::Duration;
@@ -49,8 +61,11 @@ pub fn format_current_time() -> String {
 }
 
 fn print_live_header(snap: &Snapshot, ring: &RingBuffer) {
-    print!("\x1b[H\x1b[2J");
-    let _ = io::stdout().flush();
+    // Only clear screen if stdout is a TTY
+    if crossterm::tty::IsTty::is_tty(&io::stdout()) {
+        print!("\x1b[H\x1b[2J");
+        let _ = io::stdout().flush();
+    }
     println!(
         "{}===============================================================",
         color_code(C_GREEN)
@@ -444,8 +459,10 @@ fn prompt_for_pid() -> Option<String> {
     print!(">> Enter process ID: ");
     let _ = io::stdout().flush();
     let mut line = String::new();
-    if io::stdin().read_line(&mut line).is_err() {
-        return None;
+    match io::stdin().read_line(&mut line) {
+        Ok(0) => return None, // EOF
+        Ok(_) => {}
+        Err(_) => return None,
     }
     let pid = line.trim().to_string();
     if pid.is_empty() {
@@ -466,7 +483,18 @@ pub fn run_live() -> Result<()> {
     let mut view = View::Overview;
     let mut ring = RingBuffer::new();
 
-    enable_raw_mode()?;
+    if enable_raw_mode().is_err() {
+        // Not a TTY — run in non-interactive mode: capture one snapshot and display
+        if let Ok(snap) = capture_snapshot(&pid, view) {
+            ring.push(snap);
+            if let Some(current) = ring.get_by_offset(0) {
+                print_live_header(current, &ring);
+                print_live_snapshot(current, &ring);
+            }
+        }
+        return Ok(());
+    }
+    fix_raw_output();
 
     // Ensure raw mode is disabled on exit
     let result = (|| -> Result<()> {
@@ -536,6 +564,7 @@ pub fn run_live() -> Result<()> {
                         eprintln!("invalid PID");
                     }
                     enable_raw_mode()?;
+                    fix_raw_output();
                     ring.clear();
                 }
                 KeyCode::Esc => break,
