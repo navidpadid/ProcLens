@@ -8,10 +8,7 @@
   "shell": {
     "init_hook": [
       "export PATH=\"$HOME/.cargo/bin:$PATH\"",
-      "if ! command -v cargo &>/dev/null; then",
-      "  echo \"Installing Rust toolchain...\"",
-      "  rustup default stable",
-      "fi",
+      "rustup default stable 2>/dev/null || true",
       "echo \"ProcLens dev environment ready\"",
       "echo \"  cargo build --release  # build\"",
       "echo \"  cargo test             # test\"",
