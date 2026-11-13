@@ -59,4 +59,3 @@ compile_commands.json
 
 # Rust
 /target/
-Cargo.lock
