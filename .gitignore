@@ -1,18 +1,6 @@
 # Build artifacts
 build/
-*.o
-*.ko
-*.mod
-*.mod.c
-*.mod.o
-*.symvers
-*.order
-.*.cmd
-.tmp_versions/
-Module.symvers
-modules.order
-
-# Note: Kbuild files are source files and should be tracked by git
+target/
 
 # Editor and IDE files
 .vscode/
@@ -22,21 +10,12 @@ modules.order
 *~
 .DS_Store
 
-# Kernel module specific
-*.markers
-
 # Debug files
 *.dSYM/
-
-# Compiled user programs
-proclens
 
 # Core dumps
 core
 core.*
-
-# Dependency files
-*.d
 
 # Archive files
 *.a
@@ -46,16 +25,11 @@ core.*
 # Backup files
 *.bak
 *.backup
-
-# QEMU testing environment
-e2e/qemu-env/
 *~
+
+# Devbox
+.devbox/
 
 # Static analysis output
 *.log
-cppcheck-build/
-scan-build-*/
 compile_commands.json
-
-# Rust
-/target/

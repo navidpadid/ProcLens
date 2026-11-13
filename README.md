@@ -41,7 +41,7 @@
 - **ELF Section Analysis**: Binary base address and section boundaries
 - **Pure Userspace**: No kernel module — reads directly from `/proc` and `NETLINK_SOCK_DIAG`
 - **Live Dashboard Mode**: No-arg mode refreshes every 1s with a condensed Overview page, recent trend plots, and switchable Memory, Network, Threads, and I/O sections
-- **Comprehensive Testing**: Unit tests and QEMU-based E2E testing
+- **Comprehensive Testing**: Unit tests with Devbox
 - **Code Quality**: `cargo fmt` + `cargo clippy` with CI enforcement
 
 ## Quick Start
@@ -210,7 +210,6 @@ ProcLens/
 ├── .github/            # CI/CD workflows (GitHub Actions)
 ├── design/             # Design docs (Rust migration plan)
 ├── docs/               # Detailed documentation
-├── e2e/                # End-to-end testing scripts
 ├── src/                # Rust source (main, collector, procfs, render, live, util, config)
 │   └── test_multithread.c  # C helper for multi-thread testing
 ├── Cargo.toml          # Rust manifest
@@ -250,10 +249,10 @@ Unit tests for all pure helpers and procfs parsing.
 
 ## Documentation
 
-- [TESTING.md](docs/TESTING.md) - Unit tests, QEMU testing, troubleshooting
+- [TESTING.md](docs/TESTING.md) - Unit tests and troubleshooting
 - [TECHNICAL.md](docs/TECHNICAL.md) - Kernel module details, memory layout, limitations
 - [CODE_QUALITY.md](docs/CODE_QUALITY.md) - Static analysis, code formatting, best practices
-- [SCRIPTS.md](docs/SCRIPTS.md) - Detailed script documentation
+- [SCRIPTS.md](docs/SCRIPTS.md) - Devbox and automation scripts
 - [RELEASE.md](docs/RELEASE.md) - Version release process and guidelines
 - [AGENTIC_WORKFLOW.md](docs/AGENTIC_WORKFLOW.md) - High-level guide for the docs agent workflow
 

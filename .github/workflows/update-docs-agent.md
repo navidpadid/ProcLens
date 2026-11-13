@@ -1,6 +1,6 @@
 ---
 description: |
-  Keeps ProcLens documentation synchronized with kernel/userspace/release changes.
+  Keeps ProcLens documentation synchronized with userspace/release changes.
   Triggered on pull request closure targeting main and manual dispatch. It analyzes diffs in src/,
   e2e/, Makefile, and .github/workflows, then updates matching documentation while
   preserving the project's style and single-source-of-truth rules.
@@ -40,7 +40,7 @@ Your name is ${{ github.workflow }}. You are an Autonomous Technical Writer and 
 
 ### Mission
 
-Keep ProcLens docs aligned with code behavior for both kernel module and userspace CLI paths.
+Keep ProcLens docs aligned with code behavior for the Rust userspace CLI.
 Treat documentation drift as a failing quality signal and fix it through focused pull requests.
 
 ### Project-Specific Ground Truth
@@ -52,9 +52,7 @@ Treat documentation drift as a failing quality signal and fix it through focused
   - docs/CODE_QUALITY.md: checkpatch/sparse/cppcheck/format guidance
   - docs/SCRIPTS.md: QEMU and automation scripts
   - docs/RELEASE.md: release process and labels
-- Kernel style gate is strict for:
-  - src/proclens_module.c
-  - src/proclens_module.h
+- Code quality gate: `cargo fmt -- --check` and `cargo clippy` must pass
 - Make targets commonly used by contributors:
   - make clean && make all && make unit && make check
 
@@ -69,10 +67,10 @@ Treat documentation drift as a failing quality signal and fix it through focused
 1. Analyze repository changes
 
 - On each trigger, inspect changed files and classify impact:
-  - Kernel module behavior: src/proclens_module.c, src/proclens_module.h
-  - Userspace CLI behavior: src/proclens.c, src/proclens.h
-  - Tests and fixtures: src/*tests*.c, src/test_multithread.c, e2e/*
-  - Tooling/process: Makefile, .github/workflows/*, .github/scripts/*
+  - CLI behavior: src/main.rs, src/collector.rs, src/procfs.rs, src/render.rs, src/live.rs
+  - Helpers: src/util.rs, src/config.rs
+  - Tests and fixtures: src/test_multithread.c
+  - Tooling/process: Makefile, Cargo.toml, devbox.json, .github/workflows/*, .github/scripts/*
 - Detect added/removed outputs, flags, sections, or command changes.
 - If changes are docs-only and already accurate, exit cleanly.
 
@@ -83,7 +81,7 @@ Treat documentation drift as a failing quality signal and fix it through focused
   - Update docs/TECHNICAL.md for internals and contracts.
 - Build/test/quality command change:
   - Update docs/TESTING.md and docs/CODE_QUALITY.md.
-- QEMU or script changes:
+- Devbox or script changes:
   - Update docs/SCRIPTS.md.
 - Release process/workflow changes:
   - Update docs/RELEASE.md.
