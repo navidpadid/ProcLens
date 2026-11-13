@@ -49,46 +49,88 @@
 ### Prerequisites
 
 - **Rust** 1.75+ or **Devbox** (`devbox shell` sets up everything)
-- Linux with `/proc` filesystem (any distro, no kernel headers needed)
+- Linux with `/proc` filesystem for live process inspection (any distro, no kernel headers needed)
 
-### Build and Run
+### Development
 
-1. Build:
-   ```bash
-   cargo build --release
-   # or via make shim:
-   make all
-   ```
-2. Run (one-shot):
-   ```bash
-   ./target/release/proclens <PID>
-   # or
-   ./build/proclens <PID>
-   ```
-3. Run (live dashboard):
-   ```bash
-   ./target/release/proclens
-   ```
-4. Install (optional):
-   ```bash
-   sudo make install
-   ```
+#### macOS
 
-### Live Mode (No Parameters)
+On macOS there is no `/proc` filesystem, so you can build and run unit tests natively, but live process inspection requires Docker or a Linux VM.
 
-Running without arguments starts a live dashboard:
+```bash
+# Install Devbox (if not already installed)
+curl -fsSL https://get.jetpack.io/devbox | bash
 
-- Auto-refreshes every 1 second
-- Defaults to section `5` (overview summary)
-- Overview includes 32-sample block-style histogram trend lanes for CPU, RSS, RX/s, TX/s, and WR/s based on recent snapshots
-- Shows quick controls at the top: `1` memory, `2` network, `3` threads, `4` I/O, `5` overview
-- Shows command hints in-app: `1/2/3/4/5` switch sections, `0` changes PID
-- Prints timestamps at top and bottom in `YY/MM/DD HH:MM:SS`
-- Keeps a snapshot history (up to 120 entries) for in-app navigation
-- Press Up/`k` for older snapshots, Down/`j` for newer snapshots, `f` to resume live follow
-- Press `0` to switch to another process ID (no Enter needed)
+# Enter dev environment (installs Rust toolchain automatically)
+devbox shell
 
-> **Note:** No kernel module needed. The binary reads directly from `/proc` — works on any Linux distro without headers or `insmod`.
+# Build
+cargo build --release          # or: make all / devbox run build
+
+# Unit tests (works on macOS — uses fake /proc fixtures)
+cargo test                     # or: make unit / devbox run test
+
+# Code quality
+cargo fmt                      # or: make format / devbox run fmt
+cargo clippy                   # or: make check  / devbox run lint
+cargo fmt -- --check && cargo clippy && cargo test  # or: devbox run check
+```
+
+For E2E testing with real processes on macOS, use Docker:
+
+```bash
+./e2e.sh                                              # all E2E tests in Docker
+docker build -f Dockerfile.e2e -t proclens-e2e .      # manual build
+docker run --rm proclens-e2e ./build/proclens 1       # one-shot with PID 1
+docker run --rm -it proclens-e2e ./build/proclens     # live dashboard (interactive)
+```
+
+With fake `/proc` (works on any platform, no Docker needed):
+
+```bash
+PROCLENS_PROC_DIR=/tmp/fake_proc ./target/release/proclens 123
+```
+
+#### Linux (Native)
+
+On Linux, all features work natively including live process inspection:
+
+```bash
+# Option 1: Devbox (recommended — reproducible environment)
+devbox shell
+cargo build --release
+./target/release/proclens $$        # one-shot with current shell
+./target/release/proclens           # live dashboard
+
+# Option 2: Direct Rust install
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+cargo build --release
+cargo test
+sudo make install                   # install to /usr/local/bin
+
+# Option 3: Make shims
+make all                            # build
+make unit                           # test
+make run-multithread                # multi-threaded test
+make format && make check           # fmt + clippy
+```
+
+#### WSL (Windows Subsystem for Linux)
+
+WSL2 provides a full Linux kernel with `/proc`, so ProcLens works natively:
+
+```bash
+# Inside WSL2 Ubuntu/Debian
+devbox shell                        # or install Rust directly
+cargo build --release
+./target/release/proclens $$        # works — WSL has /proc
+./target/release/proclens           # live dashboard works
+
+# Docker also works inside WSL if Docker Desktop is configured
+./e2e.sh
+```
+
+> **Note:** No kernel module needed on any platform. The binary reads directly from `/proc` — works on any Linux distro/WSL without headers or `insmod`.
 
 ### Uninstall
 
@@ -158,25 +200,36 @@ Cleanup Targets:
 ## Testing
 
 ### Unit Tests
-```bash
-make unit          # or: cargo test
-```
-Runs pure function tests (no kernel dependencies).
 
-### Multi-threaded Test
-```bash
-make run-multithread
-```
-Builds the multi-threaded test program and validates output.
+Works on all platforms (macOS, Linux, WSL) — no `/proc` needed:
 
-### Manual Testing
+```bash
+cargo test             # or: make unit / devbox run test
+```
+
+Tests pure helpers and procfs parsing with fake `/proc` fixtures via `PROCLENS_PROC_DIR`.
+
+### Manual Testing (Linux / WSL)
+
 ```bash
 ./target/release/proclens $$        # one-shot with current shell
 ./target/release/proclens           # live dashboard
+```
+
+### Manual Testing (macOS — Fake Proc)
+
+```bash
 PROCLENS_PROC_DIR=/tmp/fake_proc ./target/release/proclens 123  # with fake proc
 ```
 
-### E2E Testing (Docker)
+### Multi-threaded Test (Linux / Docker)
+
+```bash
+make run-multithread                # Linux/WSL native
+./e2e.sh                            # Docker (works on macOS too)
+```
+
+### E2E Testing (Docker — All Platforms)
 
 ```bash
 ./e2e.sh                            # build + run all E2E tests in Docker
