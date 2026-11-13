@@ -16,9 +16,6 @@ on:
     branches:
       - main
 
-env:
-  TARGET_KERNEL_BASE: 6.8.0
-
 jobs:
   prepare_release:
     if: |
@@ -114,17 +111,18 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Install build dependencies
-        run: |
-          sudo apt-get update
-          sudo apt-get install -y build-essential linux-headers-generic
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
 
-      - name: Build binaries for target kernel
+      - name: Build Rust binary
         env:
           TARGET_ARCH: ${{ matrix.arch }}
           RELEASE_TAG: ${{ needs.prepare_release.outputs.release_tag }}
         run: |
-          bash .github/scripts/release/build-target-binaries.sh
+          cargo build --release
+          mkdir -p out/${{ matrix.arch }}
+          cp target/release/proclens out/${{ matrix.arch }}/proclens
+          chmod +x out/${{ matrix.arch }}/proclens
 
       - name: Upload architecture binaries
         uses: actions/upload-artifact@v4

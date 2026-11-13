@@ -56,3 +56,7 @@ e2e/qemu-env/
 cppcheck-build/
 scan-build-*/
 compile_commands.json
+
+# Rust
+/target/
+Cargo.lock

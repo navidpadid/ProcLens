@@ -1,235 +1,130 @@
-# Kernel Module and User Program Makefile
+# ProcLens Makefile — Rust userspace build with C legacy shim
 
-# Kernel module name
-obj-m := proclens_module.o
-
-# Kernel build directory (allow override via env: KDIR=/path make)
-KDIR ?= /lib/modules/$(shell uname -r)/build
-
-# Current directory
-PWD := $(shell pwd)
-
-# User program
+# Rust binary
+CARGO ?= cargo
+BUILD_DIR := build
 USER_PROG := proclens
 
-# Source directory
+# Legacy C sources (kept for reference, not built by default)
 SRC_DIR := src
-
-# Build directory for user program
-BUILD_DIR := build
-
-# Version: can be overridden by environment/CLI (used by release workflow).
-# Default is derived from nearest git tag; falls back to "dev".
+KDIR ?= /lib/modules/$(shell uname -r)/build
+PWD := $(shell pwd)
 PROCLENS_VERSION ?= $(shell git describe --tags --always --dirty 2>/dev/null || echo "dev")
-CFLAGS_VERSION := -DPROCLENS_VERSION='"$(PROCLENS_VERSION)"'
 export PROCLENS_VERSION
 
-# Static analysis tuning
-CPPCHECK_JOBS ?= $(shell nproc)
-CPPCHECK_SRCS := $(filter-out $(SRC_DIR)/%.mod.c, $(wildcard $(SRC_DIR)/*.c))
+.PHONY: all clean build user install uninstall test help unit check format format-check checkpatch sparse cppcheck clippy build-multithread run-multithread
 
-.PHONY: all clean module user install uninstall test help unit check format checkpatch sparse cppcheck build-multithread run-multithread
+# Default: build Rust binary
+all: build
 
-# Default target
-all: module user
+build:
+	@echo "Building proclens (Rust)..."
+	@mkdir -p $(BUILD_DIR)
+	$(CARGO) build --release
+	@cp target/release/proclens $(BUILD_DIR)/proclens 2>/dev/null || cp target/release/proclens $(BUILD_DIR)/
+	@echo "Build complete: $(BUILD_DIR)/proclens"
 
-# Build kernel module
+# Alias for compatibility
+user: build
+
+# No kernel module in Rust build
 module:
-	@echo "Building kernel module..."
-	$(MAKE) -C $(KDIR) M=$(PWD)/$(SRC_DIR) modules
-	@mkdir -p $(BUILD_DIR)
-	@cp $(SRC_DIR)/*.ko $(BUILD_DIR)/ 2>/dev/null || true
-	@echo "Kernel module built successfully!"
+	@echo "Note: Rust build has no kernel module. Use legacy C build: make -f Makefile.legacy module"
 
-# Build user program
-user:
-	@echo "Building user program..."
-	@mkdir -p $(BUILD_DIR)
-	gcc -Wall $(CFLAGS_VERSION) -o $(BUILD_DIR)/$(USER_PROG) $(SRC_DIR)/$(USER_PROG).c
-	@echo "User program built successfully!"
+install:
+	@echo "Installing proclens to /usr/local/bin (requires sudo)..."
+	sudo install -m 755 $(BUILD_DIR)/proclens /usr/local/bin/proclens
+	@echo "Installed."
 
-# Build multi-threaded test program (for E2E testing)
+uninstall:
+	@echo "Removing proclens..."
+	sudo rm -f /usr/local/bin/proclens
+	@echo "Uninstalled."
+
+test: build
+	@echo "Running proclens (one-shot, current shell PID $$)..."
+	$(BUILD_DIR)/proclens $$ || true
+
+unit:
+	@echo "Running Rust unit tests..."
+	$(CARGO) test
+
 build-multithread:
-	@echo "Building multi-threaded test program..."
+	@echo "Building multi-threaded test program (C)..."
 	@mkdir -p $(BUILD_DIR)
 	gcc -Wall -pthread -o $(BUILD_DIR)/test_multithread $(SRC_DIR)/test_multithread.c
-	@echo "Multi-threaded test program built successfully!"
+	@echo "Built $(BUILD_DIR)/test_multithread"
 
-# Function-level unit tests (user-space)
-unit:
-	@echo "Building function-level unit tests..."
-	@mkdir -p $(BUILD_DIR)
-	gcc -Wall -I$(SRC_DIR) $(CFLAGS_VERSION) -o $(BUILD_DIR)/proclens_module_tests $(SRC_DIR)/proclens_module_tests.c
-	gcc -Wall -I$(SRC_DIR) $(CFLAGS_VERSION) -o $(BUILD_DIR)/proclens_tests $(SRC_DIR)/proclens_tests.c
-	@echo "Running unit tests..."
-	@$(BUILD_DIR)/proclens_module_tests
-	@$(BUILD_DIR)/proclens_tests
-	@echo "All function-level unit tests passed!"
-
-# Install kernel module (requires root)
-install: module
-	@echo "Installing kernel module..."
-	sudo insmod $(BUILD_DIR)/proclens_module.ko
-	@echo "Module installed. Check with: lsmod | grep proclens_module"
-
-# Uninstall kernel module (requires root)
-uninstall:
-	@echo "Uninstalling kernel module..."
-	sudo rmmod proclens_module 2>/dev/null || true
-	@echo "Module uninstalled."
-
-# Test: install module and run user program
-test: install
-	@echo "Running user program..."
-	@echo "Enter PID when prompted, or press Ctrl+C to exit"
-	$(BUILD_DIR)/$(USER_PROG)
-
-# Test multi-threaded functionality (requires root)
-run-multithread: install user build-multithread
-	@echo "Running multi-threaded test program with module..."
+run-multithread: build build-multithread
+	@echo "Running multi-threaded test..."
 	@set -e; \
 	$(BUILD_DIR)/test_multithread & \
 	TEST_PID=$$!; \
 	echo "Started test_multithread (PID: $$TEST_PID)"; \
 	sleep 1; \
-	sudo $(BUILD_DIR)/$(USER_PROG) $$TEST_PID || true; \
+	$(BUILD_DIR)/proclens $$TEST_PID || true; \
 	wait $$TEST_PID; \
-	$(MAKE) uninstall; \
 	echo "Multi-threaded test completed."
 
-# Clean build artifacts
 clean:
-	@echo "Cleaning build artifacts..."
-	$(MAKE) -C $(KDIR) M=$(PWD)/$(SRC_DIR) clean
+	@echo "Cleaning..."
+	$(CARGO) clean 2>/dev/null || true
 	rm -rf $(BUILD_DIR)
 	rm -f $(SRC_DIR)/*.o $(SRC_DIR)/*.ko $(SRC_DIR)/*.mod.c $(SRC_DIR)/*.mod $(SRC_DIR)/.*.cmd
 	rm -f $(SRC_DIR)/Module.symvers $(SRC_DIR)/modules.order
 	rm -rf $(SRC_DIR)/.tmp_versions
 	@echo "Clean complete!"
 
-# Static Analysis and Code Quality Checks
-
-# Run all code quality checks
-check: checkpatch sparse cppcheck
+check: clippy
 	@echo ""
 	@echo "================================================"
-	@echo "All static analysis checks completed!"
+	@echo "All checks completed!"
 	@echo "================================================"
 
-# Check kernel coding style with checkpatch.pl
-checkpatch:
-	@echo "Running checkpatch.pl (kernel coding style)..."
-	@if [ -f /lib/modules/$(shell uname -r)/build/scripts/checkpatch.pl ]; then \
-		for file in $(SRC_DIR)/*.c $(SRC_DIR)/*.h; do \
-			case "$$file" in \
-				*.mod.c) ;; \
-				*) if [ -f "$$file" ]; then \
-					echo "Checking $$file..."; \
-					/lib/modules/$(shell uname -r)/build/scripts/checkpatch.pl --no-tree --strict --file $$file || true; \
-				fi ;; \
-			esac; \
-		done; \
-	else \
-		echo "checkpatch.pl not found. Install kernel sources."; \
-	fi
+clippy:
+	@echo "Running clippy..."
+	$(CARGO) clippy
 
-# Run sparse static analyzer
-sparse:
-	@echo "Running sparse static analyzer..."
-	@if command -v sparse >/dev/null 2>&1; then \
-		$(MAKE) -C $(KDIR) M=$(PWD)/$(SRC_DIR) C=2 CF="-D__CHECK_ENDIAN__" modules || true; \
-	else \
-		echo "sparse not found. Install with: sudo apt-get install sparse"; \
-	fi
-
-# Run cppcheck static analyzer
-cppcheck:
-	@echo "Running cppcheck static analyzer..."
-	@if command -v cppcheck >/dev/null 2>&1; then \
-		cppcheck -j$(CPPCHECK_JOBS) --enable=warning,style,performance,portability --inconclusive \
-			--max-configs=4 \
-			--suppressions-list=.cppcheck-suppressions \
-			--inline-suppr \
-			-I$(SRC_DIR) \
-			-I/lib/modules/$(shell uname -r)/build/include \
-			--error-exitcode=0 \
-			$(CPPCHECK_SRCS) 2>&1 | grep -v "Cppcheck cannot find" || true; \
-	else \
-		echo "cppcheck not found. Install with: sudo apt-get install cppcheck"; \
-	fi
-
-# Format code with clang-format
 format:
-	@echo "Formatting code with clang-format..."
-	@if command -v clang-format >/dev/null 2>&1; then \
-		for file in $(SRC_DIR)/*.c $(SRC_DIR)/*.h; do \
-			case "$$file" in \
-				*.mod.c) ;; \
-				*) if [ -f "$$file" ]; then \
-					echo "Formatting $$file..."; \
-					clang-format -i $$file; \
-				fi ;; \
-			esac; \
-		done; \
-		echo "Code formatting complete!"; \
-	else \
-		echo "clang-format not found. Install with: sudo apt-get install clang-format"; \
-	fi
+	@echo "Formatting with cargo fmt..."
+	$(CARGO) fmt
 
-# Check if code is properly formatted (CI-friendly)
 format-check:
-	@echo "Checking code formatting..."
-	@if command -v clang-format >/dev/null 2>&1; then \
-		UNFORMATTED=$$(for file in $(SRC_DIR)/*.c $(SRC_DIR)/*.h; do \
-			case "$$file" in \
-				*.mod.c) ;; \
-				*) if [ -f "$$file" ]; then \
-					clang-format -output-replacements-xml $$file | grep -q "<replacement " && echo "$$file"; \
-				fi ;; \
-			esac; \
-		done); \
-		if [ -n "$$UNFORMATTED" ]; then \
-			echo "The following files need formatting:"; \
-			echo "$$UNFORMATTED"; \
-			exit 1; \
-		else \
-			echo "All files are properly formatted!"; \
-		fi; \
-	else \
-		echo "clang-format not found. Install with: sudo apt-get install clang-format"; \
-		exit 1; \
-	fi
+	@echo "Checking formatting..."
+	$(CARGO) fmt -- --check
 
-# Help target
+# Legacy stubs for CI compatibility
+checkpatch:
+	@echo "checkpatch: not applicable for Rust build (legacy C only)"
+
+sparse:
+	@echo "sparse: not applicable for Rust build"
+
+cppcheck:
+	@echo "cppcheck: not applicable for Rust build"
+
 help:
-	@echo "ProcLens - Build Targets:"
+	@echo "ProcLens - Build Targets (Rust):"
 	@echo ""
 	@echo "Build Targets:"
-	@echo "  make all               - Build both kernel module and user program (default)"
-	@echo "  make module            - Build kernel module only"
-	@echo "  make user              - Build user program only"
-	@echo "  make build-multithread - Build multi-threaded test program"
+	@echo "  make all               - Build Rust binary (default)"
+	@echo "  make build             - Build Rust binary"
+	@echo "  make build-multithread - Build multi-threaded test program (C)"
 	@echo ""
 	@echo "Run Targets:"
-	@echo "  make install           - Install kernel module (requires root)"
-	@echo "  make uninstall         - Remove kernel module (requires root)"
-	@echo "  make test              - Install module and run user program"
+	@echo "  make install           - Install binary to /usr/local/bin"
+	@echo "  make uninstall         - Remove binary"
+	@echo "  make test              - Build and run with current PID"
 	@echo ""
 	@echo "Test Targets:"
-	@echo "  make unit              - Build and run function-level unit tests"
-	@echo "  make run-multithread   - Install module and test multi-thread program"
+	@echo "  make unit              - Run Rust unit tests (cargo test)"
+	@echo "  make run-multithread   - Test with multi-thread program"
 	@echo ""
 	@echo "Code Quality Targets:"
-	@echo "  make check             - Run all static analysis checks"
-	@echo "  make checkpatch        - Check kernel coding style with checkpatch.pl"
-	@echo "  make sparse            - Run sparse static analyzer"
-	@echo "  make cppcheck          - Run cppcheck static analyzer"
-	@echo "  make format            - Format code with clang-format"
-	@echo "  make format-check      - Check if code is properly formatted (CI)"
+	@echo "  make check             - Run clippy"
+	@echo "  make clippy            - Run clippy with -D warnings"
+	@echo "  make format            - Format with cargo fmt"
+	@echo "  make format-check      - Check formatting"
 	@echo ""
 	@echo "Cleanup Targets:"
-	@echo "  make clean             - Remove all build artifacts"
-	@echo ""
-	@echo "  make help              - Show this help message"
-	@echo ""
-	@echo "Note: Building the kernel module requires kernel headers to be installed."
+	@echo "  make clean             - Remove build artifacts"

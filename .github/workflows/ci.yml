@@ -11,88 +11,63 @@ permissions:
 
 jobs:
   build-and-test:
-    name: Build Kernel Module and User Program
-    runs-on: ubuntu-24.04  # Uses kernel 6.8+ for VMA iterator API support
-    
+    name: Build Rust Binary
+    runs-on: ubuntu-24.04
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-    
-    - name: Install kernel headers and build tools
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y build-essential linux-headers-$(uname -r) kmod
-    
-    - name: Display kernel version
-      run: |
-        uname -r
-        ls -la /lib/modules/$(uname -r)/build || echo "Kernel headers path check"
-    
-    - name: Build kernel module
-      run: make module
-    
-    - name: Build user program
-      run: make user
-    
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+
+    - name: Build
+      run: cargo build --release
+
     - name: Verify build artifacts
       run: |
-        ls -la build/
-        file build/proclens_module.ko
-        file build/proclens
+        ls -la target/release/proclens
+        file target/release/proclens
+        ./target/release/proclens --version
         echo "Build artifacts verified successfully!"
-    
+
     - name: Upload build artifacts
       uses: actions/upload-artifact@v4
       if: always()
       with:
-        name: kernel-module-build
-        path: build/
+        name: proclens-binary
+        path: target/release/proclens
         retention-days: 30
 
   static-analysis:
     name: Static Analysis and Code Quality
     runs-on: ubuntu-24.04
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-    
-    - name: Install analysis tools
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y \
-          clang-format \
-          cppcheck \
-          sparse \
-          linux-headers-$(uname -r)
-    
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+      with:
+        components: clippy, rustfmt
+
     - name: Check code formatting
-      run: make format-check
-    
-    - name: Run checkpatch (kernel coding style)
-      run: make checkpatch
-      continue-on-error: true
-    
-    - name: Run cppcheck
-      run: make cppcheck
-      continue-on-error: true
-    
-    - name: Run sparse analyzer
-      run: make sparse
-      continue-on-error: true
+      run: cargo fmt -- --check
+
+    - name: Run clippy
+      run: cargo clippy
 
   unit-tests:
     name: Unit Tests
     runs-on: ubuntu-24.04
-    
+
     steps:
     - name: Checkout code
       uses: actions/checkout@v4
-    
-    - name: Install build tools
-      run: |
-        sudo apt-get update
-        sudo apt-get install -y build-essential gcc
-    
+
+    - name: Install Rust
+      uses: dtolnay/rust-toolchain@stable
+
     - name: Run unit tests
-      run: make unit
+      run: cargo test

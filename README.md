@@ -6,7 +6,7 @@
 [![Last Commit](https://img.shields.io/github/last-commit/navidpadid/ProcLens?style=for-the-badge&logo=git&logoColor=white)](https://github.com/navidpadid/ProcLens/commits/main)
 [![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)](LICENSE)
 
-> A Linux kernel module that surfaces process and thread details through `/proc`, including memory layout, CPU usage, network/socket activity, per-process I/O accounting, and live section-based inspection.
+> A pure userspace Rust process inspector — memory layout, CPU usage, network/socket activity, per-process I/O accounting, and live section-based inspection. No kernel module required.
 
 
 ## Live Demo
@@ -39,32 +39,39 @@
 - **Thread Information**: List all threads with TID, state, CPU usage, priority, and CPU affinity
 - **CPU Usage Tracking**: Real-time CPU percentage calculation per process and thread
 - **ELF Section Analysis**: Binary base address and section boundaries
-- **Proc Interface**: Easy access through `/proc/proclens_module/`
+- **Pure Userspace**: No kernel module — reads directly from `/proc` and `NETLINK_SOCK_DIAG`
 - **Live Dashboard Mode**: No-arg mode refreshes every 1s with a condensed Overview page, recent trend plots, and switchable Memory, Network, Threads, and I/O sections
 - **Comprehensive Testing**: Unit tests and QEMU-based E2E testing
-- **Code Quality**: Pre-configured static analysis (sparse, cppcheck, checkpatch)
+- **Code Quality**: `cargo fmt` + `cargo clippy` with CI enforcement
 
 ## Quick Start
 
 ### Prerequisites
 
-- **Docker** + **VS Code** with Remote - Containers extension
-- Dev container includes everything: Ubuntu 24.04, kernel 6.8+ headers, build tools, static analysis
+- **Rust** 1.75+ (`rustup` recommended)
+- Linux with `/proc` filesystem (any distro, no kernel headers needed)
 
 ### Build and Run
 
-1. Open project in VS Code → "Reopen in Container"
-2. Build:
+1. Build:
    ```bash
+   cargo build --release
+   # or via make shim:
    make all
    ```
-3. Install module:
+2. Run (one-shot):
+   ```bash
+   ./target/release/proclens <PID>
+   # or
+   ./build/proclens <PID>
+   ```
+3. Run (live dashboard):
+   ```bash
+   ./target/release/proclens
+   ```
+4. Install (optional):
    ```bash
    sudo make install
-   ```
-4. Run user program:
-   ```bash
-   sudo ./build/proclens
    ```
 
 ### Live Mode (No Parameters)
@@ -81,27 +88,14 @@ Running without arguments starts a live dashboard:
 - Press Up/`k` for older snapshots, Down/`j` for newer snapshots, `f` to resume live follow
 - Press `0` to switch to another process ID (no Enter needed)
 
-> **Caveat for WSL/macOS + Docker dev containers:**
-> If your container kernel does not expose matching host kernel sources/headers,
-> direct module builds can fail with errors like:
->
-> ```text
-> make -C /lib/modules/$(uname -r)/build M=/workspaces/ProcLens/src modules
-> make[1]: *** /lib/modules/.../build: No such file or directory.  Stop.
-> ```
->
-> In that case, use the isolated QEMU workflow instead:
->
-> ```bash
-> sudo ./e2e/qemu-setup.sh
-> sudo ./e2e/qemu-run.sh
-> sudo ./e2e/qemu-test.sh
-> ```
+> **Note:** No kernel module needed. The binary reads directly from `/proc` — works on any Linux distro without headers or `insmod`.
 
-### Uninstall the Module
+### Uninstall
 
 ```bash
 sudo make uninstall
+# or
+sudo rm /usr/local/bin/proclens
 ```
 
 
@@ -112,41 +106,25 @@ Download prebuilt binaries from GitHub Releases:
 - Latest release: https://github.com/navidpadid/ProcLens/releases/latest
 - All releases: https://github.com/navidpadid/ProcLens/releases
 
-> **Important:** Prebuilt kernel module releases are currently provided **only** for
-> **Linux kernel 6.8.0** (the standard Ubuntu 24.04 LTS kernel).
->
-> If your system runs any other kernel version, build from source instead.
+> Prebuilt binaries are provided for `x86_64` and `aarch64` Linux. No kernel version restriction.
 
 
 After downloading, the preferred installation/update path is to use the bundled installer scripts:
 
 ```bash
-sudo ./install.sh
-sudo proclens --version
-sudo proclens
-sudo ./uninstall.sh
+tar xzf proclens-vX.Y.Z-linux-x86_64.tar.gz
+sudo install -m 755 proclens /usr/local/bin/proclens
+proclens --version
 ```
 
 Manual install/run is still possible if needed:
 
 ```bash
-sudo insmod ./proclens_module.ko
-sudo ./proclens
+./proclens <PID>
+./proclens  # live dashboard
 ```
 
-If the module was previously installed via `make install` or `install.sh`, you can also load it with:
-
-```bash
-sudo modprobe proclens_module
-```
-
-To unload the module:
-
-```bash
-sudo rmmod proclens_module
-```
-
-More detailed information is bundled with the release packages.
+See `proclens --help` for usage.
 
 
 
@@ -154,126 +132,91 @@ More detailed information is bundled with the release packages.
 
 ```bash
 Build Targets:
-  make all               - Build both kernel module and user program (default)
-  make module            - Build kernel module only
-  make user              - Build user program only
-  make build-multithread - Build multi-threaded test program
+  make all               - Build Rust binary (default)
+  make build             - Build Rust binary
+  make build-multithread - Build multi-threaded test program (C)
 
 Run Targets:
-  make install           - Install kernel module (requires root)
-  make uninstall         - Remove kernel module (requires root)
-  make test              - Install module and run user program
+  make install           - Install binary to /usr/local/bin
+  make uninstall         - Remove binary
+  make test              - Build and run with current PID
 
 Test Targets:
-  make unit              - Build and run function-level unit tests
-  make run-multithread   - Install module and test multi-thread program
+  make unit              - Run Rust unit tests (cargo test)
+  make run-multithread   - Test with multi-thread program
 
 Code Quality Targets:
-  make check             - Run all static analysis checks
-  make checkpatch        - Check kernel coding style with checkpatch.pl
-  make sparse            - Run sparse static analyzer
-  make cppcheck          - Run cppcheck static analyzer
-  make format            - Format code with clang-format
-  make format-check      - Check if code is properly formatted (CI)
+  make check             - Run clippy
+  make clippy            - Run clippy
+  make format            - Format with cargo fmt
+  make format-check      - Check formatting (cargo fmt --check)
 
 Cleanup Targets:
-  make clean             - Remove all build artifacts
+  make clean             - Remove build artifacts
 ```
 
 ## Testing
 
-### Unit Tests (Recommended First)
+### Unit Tests
 ```bash
-make unit
+make unit          # or: cargo test
 ```
-Runs pure function tests without kernel dependencies.
+Runs pure function tests (no kernel dependencies).
 
-### Multi-threaded Module Test
+### Multi-threaded Test
 ```bash
 make run-multithread
 ```
-Builds the multi-threaded test program, installs the module, and validates output via the user program.
+Builds the multi-threaded test program and validates output.
 
-### QEMU Testing (Safe Kernel Testing)
+### Manual Testing
 ```bash
-sudo ./e2e/qemu-setup.sh    # One-time setup
-sudo ./e2e/qemu-run.sh      # Start VM
-sudo ./e2e/qemu-test.sh     # Run automated tests
+./target/release/proclens $$        # one-shot with current shell
+./target/release/proclens           # live dashboard
+PROCLENS_PROC_DIR=/tmp/fake_proc ./target/release/proclens 123  # with fake proc
 ```
 
 ## Architecture Diagram
 
 ```mermaid
 flowchart TB
-    subgraph UserSpace[User Space]
-        User[User]
+    subgraph UserSpace[User Space - Rust Binary]
         CLI["<b>proclens</b> CLI<br/>one-shot · live dashboard"]
-        Tests[Unit tests and QEMU E2E]
-        User --> CLI
-        Tests --> CLI
+        Collect["<b>Collector</b><br/>Snapshot assembly"]
+        ProcFS["<b>ProcFS Reader</b><br/>status · stat · maps · io · cmdline · task"]
+        NetDiag["<b>Netlink SOCK_DIAG</b><br/>socket details"]
+        Render["<b>Render</b><br/>section filtering · overview · sparklines"]
     end
 
-    subgraph ProcFS[ProcFS Interface]
-        PID["<b>/proc/proclens_module/pid</b><br/>write target PID"]
-        DET["<b>/proc/proclens_module/det</b><br/>read process details"]
-        THR["<b>/proc/proclens_module/threads</b><br/>read thread details"]
+    subgraph KernelProvided[Kernel-Provided Interfaces]
+        ProcFiles["<b>/proc filesystem</b><br/>standard procfs"]
+        NetlinkSock["<b>NETLINK_SOCK_DIAG</b>"]
+        ExeLink["<b>/proc/pid/exe</b><br/>ELF binary"]
     end
 
-    subgraph KernelModule[Kernel Module: proclens_module]
-        PIDBuf[PID buffer and proc write handler]
-        Show["<b>proclens_module_show</b><br/>seq_file render path"]
-        ThreadShow["<b>proclens_module_threads_show</b><br/>thread listing render path"]
-        Memory["<b>Memory section builders</b><br/>pressure · layout · visualization"]
-        Network["<b>Network + socket builders</b><br/>brief stats · open sockets"]
-        IO[I/O stats builder]
-        ThreadInfo[Thread info line builder]
-    end
-
-    subgraph KernelData[Kernel Data Sources]
-        Task["<b>task_struct</b><br/>pid · comm · utime · stime · faults"]
-        MM["<b>mm_struct</b> + VMA maple tree<br/>code · data · bss<br/>heap · stack · ELF base"]
-        Signal["<b>signal_struct</b><br/>oom_score_adj"]
-        Files["<b>files_struct</b> + fdtable<br/>process file descriptors"]
-        Sock["<b>socket / sock</b><br/><b>tcp_sock / inet_sock</b><br/>protocol · state · addresses · traffic"]
-        IOAcct["<b>task I/O accounting</b><br/>rchar · wchar · syscr · syscw<br/>storage bytes"]
-        Threads["<b>thread group</b> + sched state<br/>priority · nice · cpumask"]
-    end
-
-    CLI -->|write selected PID| PID
-    CLI -->|read details| DET
-    CLI -->|read thread list| THR
-    PID --> PIDBuf
-    DET --> Show
-    THR --> ThreadShow
-    PIDBuf --> Show
-    PIDBuf --> ThreadShow
-    Show --> Memory
-    Show --> Network
-    Show --> IO
-    ThreadShow --> ThreadInfo
-    Memory --> Task
-    Memory --> MM
-    Memory --> Signal
-    Network --> Files
-    Network --> Sock
-    IO --> IOAcct
-    IO --> Task
-    ThreadInfo --> Threads
-    ThreadInfo --> Task
-    KernelModule -->|formatted seq_file output| ProcFS
+    CLI --> Collect
+    Collect --> ProcFS
+    Collect --> NetDiag
+    ProcFS --> ProcFiles
+    NetDiag --> NetlinkSock
+    Collect --> Render
+    Render -->|formatted output| CLI
 ```
 
 ## Project Structure
 
 ```
 ProcLens/
-├── .devcontainer/      # Dev container config (Docker + VS Code setup)
 ├── .github/            # CI/CD workflows (GitHub Actions)
+├── design/             # Design docs (Rust migration plan)
 ├── docs/               # Detailed documentation
-├── e2e/                # End-to-end testing scripts (QEMU setup, automation)
-├── src/                # Source code (kernel module, user program, tests, helpers)
-├── build/              # Build artifacts (generated by make)
-└── Makefile            # Build system with quality checks
+├── e2e/                # End-to-end testing scripts
+├── src/                # Rust source (main, collector, procfs, render, live, util, config)
+│   ├── proclens.c/h    # Legacy C sources (archived)
+│   └── test_multithread.c
+├── Cargo.toml          # Rust manifest
+├── build/              # Build artifacts
+└── Makefile            # Build shim (cargo build/test/fmt/clippy)
 ```
 
 ## Output Notes
@@ -296,36 +239,14 @@ ProcLens/
 
 ### Static Analysis Tools
 
-#### checkpatch.pl
-Official Linux kernel coding style checker. Enforces kernel coding standards including:
-- Indentation and spacing rules
-- Line length limits
-- Function declaration style
-- Comment formatting
-- Macro usage patterns
+#### cargo fmt
+Code formatter — 100-column limit, Rust 2021 edition.
 
-#### sparse
-Semantic parser specifically designed for kernel code. Detects:
-- Type confusion errors
-- Endianness issues
-- Lock context imbalances
-- Address space mismatches
-- Null pointer dereferences
+#### cargo clippy
+Linter for common mistakes, style issues, and performance hints.
 
-#### cppcheck
-General-purpose C/C++ static analyzer. Finds:
-- Memory leaks
-- Buffer overflows
-- Uninitialized variables
-- Dead code
-- Logic errors
-
-#### clang-format
-Code formatter that ensures consistent style:
-- 8-space tabs (kernel standard)
-- 100-column relaxed kernel limit used by this project
-- Linux brace style
-- Proper spacing and alignment
+#### cargo test
+Unit tests for all pure helpers and procfs parsing.
 
 ## Documentation
 
